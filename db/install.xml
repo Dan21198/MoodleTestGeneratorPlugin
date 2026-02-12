@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="local/pdfquizgen/db" VERSION="20240207" COMMENT="XMLDB file for PDF Quiz Generator plugin"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
+>
+    <TABLES>
+        <TABLE NAME="local_pdfquizgen_jobs" COMMENT="Stores PDF to Quiz generation jobs">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Course ID"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="User who created the job"/>
+                <FIELD NAME="fileid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="File ID from mdl_files"/>
+                <FIELD NAME="filename" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="Original filename"/>
+                <FIELD NAME="status" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="pending" SEQUENCE="false" COMMENT="pending, processing, completed, failed"/>
+                <FIELD NAME="quizid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Created quiz ID"/>
+                <FIELD NAME="questioncount" TYPE="int" LENGTH="5" NOTNULL="false" SEQUENCE="false" COMMENT="Number of questions requested"/>
+                <FIELD NAME="questiontype" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="Type of questions generated"/>
+                <FIELD NAME="extracted_text" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Extracted text from PDF"/>
+                <FIELD NAME="api_response" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Raw API response"/>
+                <FIELD NAME="error_message" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Error message if failed"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timecompleted" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="courseid" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+                <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+                <KEY NAME="fileid" TYPE="foreign" FIELDS="fileid" REFTABLE="files" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="status" UNIQUE="false" FIELDS="status"/>
+                <INDEX NAME="timecreated" UNIQUE="false" FIELDS="timecreated"/>
+            </INDEXES>
+        </TABLE>
+
+        <TABLE NAME="local_pdfquizgen_questions" COMMENT="Stores generated questions before adding to quiz">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="jobid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="questiontext" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="questiontype" TYPE="char" LENGTH="20" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="options" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON encoded options for MCQ"/>
+                <FIELD NAME="correctanswer" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="explanation" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="moodle_questionid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="jobid" TYPE="foreign" FIELDS="jobid" REFTABLE="local_pdfquizgen_jobs" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+
+        <TABLE NAME="local_pdfquizgen_logs" COMMENT="Activity logs for the plugin">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="jobid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="action" TYPE="char" LENGTH="50" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="details" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="timecreated" UNIQUE="false" FIELDS="timecreated"/>
+            </INDEXES>
+        </TABLE>
+    </TABLES>
+</XMLDB>

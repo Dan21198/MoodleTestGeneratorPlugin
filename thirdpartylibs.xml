@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<libraries>
+    <!--
+    This plugin optionally uses the following third-party libraries:
+
+    1. Smalot PDF Parser (optional)
+       License: LGPL v3
+       Source: https://github.com/smalot/pdfparser
+       Install: composer require smalot/pdfparser
+
+    2. OpenRouter API
+       License: Commercial (requires API key)
+       Source: https://openrouter.ai/
+    -->
+</libraries>

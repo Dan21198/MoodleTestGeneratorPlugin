@@ -26,13 +26,7 @@ namespace local_pdfquizgen;
 
 defined('MOODLE_INTERNAL') || die();
 
-/**
- * Class for extracting text from PDF files.
- *
- * @package    local_pdfquizgen
- * @copyright  2025 Daniel Horejsi
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+use local_pdfquizgen\util\text_helper;
 class pdf_extractor {
 
     /** @var int Maximum file size in MB */
@@ -123,77 +117,107 @@ class pdf_extractor {
     /**
      * Extract text from PDF content.
      *
-     * @param string $content The PDF file content
+     * @param string $content PDF file content
+     * @param string $filename Original filename for context
      * @return array Array with 'success', 'text', and 'error' keys
      */
-    public function extract_from_content($content) {
-        // Try multiple extraction methods
+    public function extract_from_content($content, $filename = 'document.pdf') {
+        // Try different extraction methods in order of reliability
         $text = '';
+        $methods = [];
 
-        // Method 1: Try pdftotext if available
+        // Method 1: Try pdftotext (most reliable if available)
         $text = $this->extract_with_pdftotext($content);
         if (!empty($text)) {
-            return $this->format_result($text);
+            $methods[] = 'pdftotext';
         }
 
-        // Method 2: Try using Smalot PDF Parser if available
-        $text = $this->extract_with_smalot($content);
-        if (!empty($text)) {
-            return $this->format_result($text);
+        // Method 2: Try Smalot PDF Parser if available
+        if (empty($text)) {
+            $text = $this->extract_with_smalot($content);
+            if (!empty($text)) {
+                $methods[] = 'smalot';
+            }
         }
 
-        // Method 3: Basic regex extraction (fallback)
-        $text = $this->extract_with_regex($content);
-        if (!empty($text)) {
-            return $this->format_result($text);
+        // Method 3: Try to extract text from PDF streams
+        if (empty($text)) {
+            $text = $this->extract_from_streams($content);
+            if (!empty($text)) {
+                $methods[] = 'streams';
+            }
         }
 
-        return [
-            'success' => false,
-            'text' => '',
-            'error' => get_string('error_extraction_failed', 'local_pdfquizgen')
-        ];
+        // Method 4: Try basic text extraction from PDF
+        if (empty($text)) {
+            $text = $this->extract_basic($content);
+            if (!empty($text)) {
+                $methods[] = 'basic';
+            }
+        }
+
+        // Validate extracted text - make sure it's not just PDF metadata
+        if (!$this->is_valid_extracted_text($text)) {
+            return [
+                'success' => false,
+                'text' => '',
+                'error' => get_string('error_no_text_extracted', 'local_pdfquizgen')
+            ];
+        }
+
+        return $this->format_result($text, $methods);
     }
 
     /**
-     * Extract text using pdftotext command-line tool.
+     * Extract text using pdftotext command line tool.
      *
      * @param string $content The PDF content
      * @return string Extracted text or empty string on failure
      */
     private function extract_with_pdftotext($content) {
         // Check if pdftotext is available
-        $pdftotext = shell_exec('which pdftotext');
-        $pdftotext = trim((string)($pdftotext ?? ''));
+        $pdftotext = '';
+        if (PHP_OS_FAMILY === 'Windows') {
+            exec('where pdftotext 2>nul', $output, $returnVar);
+            $pdftotext = $returnVar === 0 ? 'pdftotext' : '';
+        } else {
+            $pdftotext = trim((string)shell_exec('which pdftotext 2>/dev/null'));
+        }
+
         if (empty($pdftotext)) {
             return '';
         }
 
-        // Create temporary files
-        $tempdir = make_temp_directory('pdfquizgen');
-        $pdfpath = $tempdir . '/' . uniqid('pdf_') . '.pdf';
-        $txtpath = $tempdir . '/' . uniqid('txt_') . '.txt';
+        try {
+            $tempdir = make_temp_directory('pdfquizgen');
+            $pdfpath = $tempdir . '/' . uniqid('pdf_') . '.pdf';
+            $txtpath = $tempdir . '/' . uniqid('txt_') . '.txt';
 
-        // Write PDF content to temp file
-        if (file_put_contents($pdfpath, $content) === false) {
+            if (file_put_contents($pdfpath, $content) === false) {
+                return '';
+            }
+
+            // Run pdftotext
+            $cmd = escapeshellcmd($pdftotext) . ' -enc UTF-8 -layout '
+                 . escapeshellarg($pdfpath) . ' '
+                 . escapeshellarg($txtpath) . ' 2>&1';
+
+            exec($cmd, $output, $returnVar);
+
+            $text = '';
+            if ($returnVar === 0 && file_exists($txtpath)) {
+                $text = file_get_contents($txtpath);
+            }
+
+            // Cleanup
+            @unlink($pdfpath);
+            @unlink($txtpath);
+
+            return $text ?: '';
+        } catch (\Exception $e) {
+            // pdftotext failed, will try other methods
             return '';
         }
-
-        // Run pdftotext
-        $command = escapeshellcmd($pdftotext) . ' ' . escapeshellarg($pdfpath) . ' ' . escapeshellarg($txtpath);
-        exec($command . ' 2>&1', $output, $returncode);
-
-        // Read extracted text
-        $text = '';
-        if ($returncode === 0 && file_exists($txtpath)) {
-            $text = file_get_contents($txtpath);
-        }
-
-        // Clean up temp files
-        @unlink($pdfpath);
-        @unlink($txtpath);
-
-        return $text;
     }
 
     /**
@@ -227,79 +251,288 @@ class pdf_extractor {
 
             return $text;
         } catch (\Exception $e) {
-            debugging('Smalot PDF Parser error: ' . $e->getMessage());
+            // Smalot parser failed, will try other methods
             return '';
         }
     }
 
     /**
-     * Extract text using basic regex (fallback method).
+     * Extract text using basic extraction method.
+     * This method tries to extract text from uncompressed PDF content.
      *
      * @param string $content The PDF content
      * @return string Extracted text or empty string on failure
      */
-    private function extract_with_regex($content) {
+    private function extract_basic($content) {
         $text = '';
 
-        // Try to extract text streams from PDF
-        // This is a basic implementation and may not work for all PDFs
-
-        // Look for text streams
-        if (preg_match_all('/stream\s*(.*?)\s*endstream/s', $content, $matches)) {
-            foreach ($matches[1] as $stream) {
-                // Try to decompress if compressed
-                $decompressed = @gzuncompress($stream);
-                if ($decompressed !== false) {
-                    $stream = $decompressed;
-                }
-
-                // Extract text between BT (Begin Text) and ET (End Text)
-                if (preg_match_all('/BT\s*(.*?)\s*ET/s', $stream, $textmatches)) {
-                    foreach ($textmatches[1] as $textblock) {
-                        // Extract text from TJ and Tj operators
-                        if (preg_match_all('/\(([^)]+)\)\s*T[jJ]/', $textblock, $tmatches)) {
-                            $text .= implode(' ', $tmatches[1]) . ' ';
-                        }
-                    }
+        // First, try to extract from uncompressed BT/ET blocks in the raw content
+        if (preg_match_all('/BT\s*(.*?)\s*ET/s', $content, $matches)) {
+            foreach ($matches[1] as $textblock) {
+                $extracted = $this->extract_text_from_block($textblock);
+                if (!empty($extracted)) {
+                    $text .= $extracted . ' ';
                 }
             }
         }
 
-        // Alternative: Look for plain text in the PDF
-        if (empty($text)) {
-            // Remove binary data and extract readable text
-            $text = preg_replace('/[^\x20-\x7E\s]/', '', $content);
-            // Clean up multiple spaces
-            $text = preg_replace('/\s+/', ' ', $text);
+        // If we found actual text content, return it
+        if (!empty(trim($text)) && strlen(trim($text)) > 50) {
+            return trim($text);
         }
 
-        return trim((string)($text ?? ''));
+        // Don't return raw PDF content - it's useless
+        return '';
+    }
+
+    /**
+     * Extract text from a PDF text block (content between BT and ET).
+     *
+     * @param string $textblock The text block content
+     * @return string Extracted text
+     */
+    private function extract_text_from_block(string $textblock): string {
+        $text = '';
+
+        // Extract text from TJ operator (array of strings)
+        if (preg_match_all('/\[(.*?)\]\s*TJ/s', $textblock, $tjMatches)) {
+            foreach ($tjMatches[1] as $tjContent) {
+                // Extract strings from TJ array
+                if (preg_match_all('/\(([^)]*)\)/', $tjContent, $strings)) {
+                    $text .= implode('', $strings[1]);
+                }
+            }
+        }
+
+        // Extract text from Tj operator (single string)
+        if (preg_match_all('/\(([^)]*)\)\s*Tj/', $textblock, $tjMatches)) {
+            $text .= implode('', $tjMatches[1]);
+        }
+
+        // Extract text from ' operator (move to next line and show text)
+        if (preg_match_all('/\(([^)]*)\)\s*\'/', $textblock, $quoteMatches)) {
+            $text .= "\n" . implode("\n", $quoteMatches[1]);
+        }
+
+        // Handle hex strings
+        if (preg_match_all('/<([0-9A-Fa-f]+)>\s*T[jJ]/', $textblock, $hexMatches)) {
+            foreach ($hexMatches[1] as $hex) {
+                $text .= $this->decode_hex_string($hex);
+            }
+        }
+
+        // Decode PDF escape sequences
+        $text = $this->decode_pdf_escapes($text);
+
+        return $text;
+    }
+
+    /**
+     * Decode PDF hex string to text.
+     *
+     * @param string $hex Hex string
+     * @return string Decoded text
+     */
+    private function decode_hex_string(string $hex): string {
+        $text = '';
+        $len = strlen($hex);
+
+        for ($i = 0; $i < $len; $i += 2) {
+            $charCode = hexdec(substr($hex, $i, 2));
+            if ($charCode >= 32 && $charCode <= 126) {
+                $text .= chr($charCode);
+            } elseif ($charCode === 10 || $charCode === 13) {
+                $text .= "\n";
+            } else {
+                $text .= ' ';
+            }
+        }
+
+        return $text;
+    }
+
+    /**
+     * Decode PDF escape sequences.
+     *
+     * @param string $text Text with PDF escapes
+     * @return string Decoded text
+     */
+    private function decode_pdf_escapes(string $text): string {
+        $replacements = [
+            '\\n' => "\n",
+            '\\r' => "\r",
+            '\\t' => "\t",
+            '\\b' => "\b",
+            '\\f' => "\f",
+            '\\(' => '(',
+            '\\)' => ')',
+            '\\\\' => '\\',
+        ];
+
+        $text = str_replace(array_keys($replacements), array_values($replacements), $text);
+
+        // Handle octal escapes \ddd
+        $text = preg_replace_callback('/\\\\([0-7]{1,3})/', function ($matches) {
+            return chr(octdec($matches[1]));
+        }, $text);
+
+        return $text;
+    }
+
+    /**
+     * Extract text from PDF streams.
+     * Handles compressed (FlateDecode) and uncompressed streams.
+     *
+     * @param string $content The PDF content
+     * @return string Extracted text or empty string on failure
+     */
+    private function extract_from_streams($content) {
+        $text = '';
+        $processedStreams = 0;
+
+        // Find all streams
+        if (!preg_match_all('/stream\s*\r?\n(.*?)\r?\nendstream/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+            return '';
+        }
+
+        foreach ($matches[1] as $index => $match) {
+            $stream = $match[0];
+            $offset = $match[1];
+
+            // Find the object definition before this stream to check for filters
+            $objStart = strrpos(substr($content, 0, $offset), '<<');
+            $objDict = '';
+            if ($objStart !== false) {
+                $objEnd = strpos($content, '>>', $objStart);
+                if ($objEnd !== false && $objEnd < $offset) {
+                    $objDict = substr($content, $objStart, $objEnd - $objStart + 2);
+                }
+            }
+
+            // Try to decompress the stream
+            $decompressed = $this->decompress_stream($stream, $objDict);
+
+            // Extract text from the decompressed content
+            $extracted = $this->extract_text_from_stream($decompressed);
+
+            if (!empty($extracted)) {
+                $text .= $extracted . "\n";
+                $processedStreams++;
+            }
+        }
+
+        // If we couldn't extract meaningful text, return empty
+        if (strlen(trim($text)) < 50 || $processedStreams === 0) {
+            return '';
+        }
+
+        return trim($text);
+    }
+
+    /**
+     * Decompress a PDF stream based on its filter.
+     *
+     * @param string $stream Raw stream content
+     * @param string $objDict Object dictionary (to check for filters)
+     * @return string Decompressed content
+     */
+    private function decompress_stream(string $stream, string $objDict): string {
+        // Check if FlateDecode filter is used
+        $isFlate = stripos($objDict, '/FlateDecode') !== false ||
+                   stripos($objDict, '/Fl') !== false;
+
+        if ($isFlate) {
+            // Try gzinflate first (raw deflate without header)
+            $result = @gzinflate($stream);
+            if ($result !== false) {
+                return $result;
+            }
+
+            // Try with different window sizes
+            for ($wbits = 15; $wbits >= 8; $wbits--) {
+                $result = @gzinflate($stream, $wbits);
+                if ($result !== false) {
+                    return $result;
+                }
+            }
+
+            // Try gzuncompress (zlib format with header)
+            $result = @gzuncompress($stream);
+            if ($result !== false) {
+                return $result;
+            }
+
+            // Try zlib_decode
+            if (function_exists('zlib_decode')) {
+                $result = @zlib_decode($stream);
+                if ($result !== false) {
+                    return $result;
+                }
+            }
+
+            // Try adding zlib header if missing
+            $zlibStream = "\x78\x9c" . $stream;
+            $result = @gzuncompress($zlibStream);
+            if ($result !== false) {
+                return $result;
+            }
+        }
+
+        // Return raw stream if no decompression needed or possible
+        return $stream;
+    }
+
+    /**
+     * Extract readable text from a PDF stream content.
+     *
+     * @param string $stream Decompressed stream content
+     * @return string Extracted text
+     */
+    private function extract_text_from_stream(string $stream): string {
+        $text = '';
+
+        // Extract text from BT...ET blocks
+        if (preg_match_all('/BT\s*(.*?)\s*ET/s', $stream, $matches)) {
+            foreach ($matches[1] as $textblock) {
+                $extracted = $this->extract_text_from_block($textblock);
+                if (!empty($extracted)) {
+                    $text .= $extracted . ' ';
+                }
+            }
+        }
+
+        return $text;
     }
 
     /**
      * Format the extraction result.
      *
-     * @param string $text The extracted text
+     * @param string $text Extracted text
+     * @param array $methods Methods used for extraction
      * @return array Formatted result
      */
-    private function format_result($text) {
-        // Clean up the text
-        $text = $this->clean_text($text);
+    private function format_result($text, array $methods = []) {
+        // Clean and truncate text using text_helper
+        $text = text_helper::clean_pdf_text($text);
 
-        // Truncate if too long
+        // Truncate to max length
         if (strlen($text) > $this->maxlength) {
-            $text = substr($text, 0, $this->maxlength);
-            // Try to end at a sentence boundary
-            $lastperiod = strrpos($text, '.');
-            if ($lastperiod !== false && $lastperiod > $this->maxlength * 0.8) {
-                $text = substr($text, 0, $lastperiod + 1);
-            }
+            $text = text_helper::truncate($text, $this->maxlength);
+        }
+
+        if (empty($text)) {
+            return [
+                'success' => false,
+                'text' => '',
+                'error' => get_string('error_no_text_extracted', 'local_pdfquizgen')
+            ];
         }
 
         return [
             'success' => true,
             'text' => $text,
-            'error' => ''
+            'error' => '',
+            'methods' => $methods
         ];
     }
 
@@ -308,66 +541,10 @@ class pdf_extractor {
      *
      * @param string $text The raw text
      * @return string Cleaned text
+     * @deprecated Use text_helper::clean_pdf_text() instead
      */
     private function clean_text($text) {
-        if (empty($text)) {
-            return '';
-        }
-
-        // Try to detect and convert encoding to UTF-8
-        // Note: Only use encodings supported by the PHP installation
-        $encodings = ['UTF-8', 'ASCII', 'ISO-8859-1'];
-
-        // Check which encodings are available and add them
-        $available = mb_list_encodings();
-        foreach (['ISO-8859-2', 'CP1250', 'CP1252'] as $enc) {
-            if (in_array($enc, $available)) {
-                $encodings[] = $enc;
-            }
-        }
-
-        $encoding = @mb_detect_encoding($text, $encodings, true);
-        if ($encoding && $encoding !== 'UTF-8') {
-            $converted = @mb_convert_encoding($text, 'UTF-8', $encoding);
-            if ($converted !== false) {
-                $text = $converted;
-            }
-        }
-
-        // Remove null bytes
-        $text = str_replace("\0", '', $text);
-
-        // Remove invalid UTF-8 sequences
-        $text = @mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-        if ($text === false) {
-            $text = '';
-        }
-
-        // Remove BOM if present
-        $text = preg_replace('/^\xEF\xBB\xBF/', '', $text);
-
-        // Normalize line endings
-        $text = str_replace(["\r\n", "\r"], "\n", $text);
-
-        // Remove excessive whitespace
-        $text = preg_replace('/[ \t]+/', ' ', $text);
-        $text = preg_replace('/\n{3,}/', "\n\n", $text);
-
-        // Remove control characters except newlines and tabs
-        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text);
-
-        // Replace any remaining problematic characters that MySQL might reject
-        $text = preg_replace('/[^\x{0009}\x{000A}\x{000D}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u', '', $text);
-
-        // If preg_replace failed (invalid UTF-8), do aggressive cleanup
-        if ($text === null) {
-            $text = @iconv('UTF-8', 'UTF-8//IGNORE', $text);
-            if ($text === false) {
-                $text = '';
-            }
-        }
-
-        return trim((string)($text ?? ''));
+        return text_helper::clean_pdf_text($text);
     }
 
     /**
@@ -379,10 +556,16 @@ class pdf_extractor {
         $methods = [];
 
         // Check pdftotext
-        $pdftotext = shell_exec('which pdftotext');
-        $pdftotext = trim((string)($pdftotext ?? ''));
-        if (!empty($pdftotext)) {
-            $methods[] = 'pdftotext';
+        if (PHP_OS_FAMILY === 'Windows') {
+            exec('where pdftotext 2>nul', $output, $returnVar);
+            if ($returnVar === 0) {
+                $methods[] = 'pdftotext';
+            }
+        } else {
+            $pdftotext = trim((string)shell_exec('which pdftotext 2>/dev/null'));
+            if (!empty($pdftotext)) {
+                $methods[] = 'pdftotext';
+            }
         }
 
         // Check Smalot
@@ -391,12 +574,93 @@ class pdf_extractor {
             $methods[] = 'smalot';
         }
 
-        // Regex is always available as fallback
-        $methods[] = 'regex (fallback)';
+        // Built-in methods are always available as fallback
+        $methods[] = 'streams (built-in)';
+        $methods[] = 'basic (fallback)';
 
         return [
             'available' => !empty($methods),
             'methods' => $methods
         ];
+    }
+
+    /**
+     * Validate that extracted text is actual content, not PDF metadata.
+     *
+     * @param string $text Extracted text to validate
+     * @return bool True if text appears to be valid content
+     */
+    private function is_valid_extracted_text($text): bool {
+        if (empty($text)) {
+            return false;
+        }
+
+        $text = trim($text);
+
+        // Too short to be useful
+        if (strlen($text) < 100) {
+            return false;
+        }
+
+        // Check for PDF metadata patterns that indicate extraction failed
+        $metadataPatterns = [
+            '/^%PDF-[\d\.]+/i',                           // PDF version header
+            '/\/Type\s*\/Page/i',                         // PDF page object
+            '/\/MediaBox\s*\[/i',                         // PDF MediaBox
+            '/\/Resources\s*<</i',                        // PDF Resources
+            '/\/Filter\s*\/FlateDecode/i',                // PDF filter
+            '/\/Length\s+\d+/i',                          // PDF stream length
+            '/\/Font\s*<</i',                             // PDF font definition
+            '/\/XObject\s*<</i',                          // PDF XObject
+            '/endobj\s*\d+\s+\d+\s+obj/i',               // PDF object markers
+            '/^\s*\d+\s+\d+\s+obj\s*$/m',                // PDF object definition
+            '/stream\s*$/m',                              // PDF stream marker
+            '/\/Producer\s*\(/i',                         // PDF metadata
+            '/FlateDecode/i',                             // Filter name in text
+            '/\/Subtype\s*\/Type1/i',                     // Font subtype
+            '/\/BaseFont\s*\//i',                         // Base font definition
+            '/\/Encoding\s*\//i',                         // Encoding definition
+            '/xref\s+\d+\s+\d+/i',                       // PDF cross-reference
+            '/trailer\s*<</i',                            // PDF trailer
+            '/startxref/i',                               // PDF startxref
+        ];
+
+        $metadataCount = 0;
+        foreach ($metadataPatterns as $pattern) {
+            if (preg_match($pattern, $text)) {
+                $metadataCount++;
+            }
+        }
+
+        // If more than 2 metadata patterns found, it's probably not valid text
+        if ($metadataCount > 2) {
+            return false;
+        }
+
+        // Check for binary garbage - high percentage of non-printable characters
+        $nonPrintable = preg_match_all('/[^\x20-\x7E\x0A\x0D\xC0-\xFF]/', $text);
+        $textLen = strlen($text);
+        if ($textLen > 0 && ($nonPrintable / $textLen) > 0.1) {
+            return false;
+        }
+
+        // Check if the text has reasonable word distribution
+        $words = preg_split('/\s+/', $text);
+        $wordCount = count($words);
+
+        if ($wordCount < 20) {
+            return false;
+        }
+
+        // Calculate average word length
+        $totalLen = array_sum(array_map('strlen', $words));
+        $avgWordLen = $totalLen / $wordCount;
+
+        // Average word length should be between 2 and 12 characters
+        if ($avgWordLen < 2 || $avgWordLen > 12) {
+            return false;
+        }
+
+        return true;
     }
 }

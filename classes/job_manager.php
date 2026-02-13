@@ -26,6 +26,8 @@ namespace local_pdfquizgen;
 
 defined('MOODLE_INTERNAL') || die();
 
+use local_pdfquizgen\util\text_helper;
+
 /**
  * Manager for PDF to Quiz generation jobs.
  *
@@ -248,7 +250,7 @@ class job_manager {
 
         // Clean text fields before saving to database
         if (is_string($value) && in_array($field, ['extracted_text', 'api_response', 'error_message'])) {
-            $value = $this->clean_text_for_db($value);
+            $value = text_helper::clean_for_database($value);
         }
 
         $DB->set_field('local_pdfquizgen_jobs', $field, $value, ['id' => $jobid]);
@@ -281,67 +283,13 @@ class job_manager {
         global $DB;
 
         // Clean and truncate error message to prevent DB errors
-        $error = $this->clean_text_for_db($error, 65535);
+        $error = text_helper::clean_for_database($error, 65535);
 
         $DB->set_field('local_pdfquizgen_jobs', 'status', 'failed', ['id' => $jobid]);
         $DB->set_field('local_pdfquizgen_jobs', 'error_message', $error, ['id' => $jobid]);
         $DB->set_field('local_pdfquizgen_jobs', 'timemodified', time(), ['id' => $jobid]);
 
-        local_pdfquizgen_log($this->courseid, $this->userid, 'job_failed', $jobid, substr($error, 0, 500));
-    }
-
-    /**
-     * Clean text for database storage - removes invalid UTF-8 characters.
-     *
-     * @param string $text Text to clean
-     * @param int $maxlength Maximum length (0 = no limit)
-     * @return string Cleaned text
-     */
-    private function clean_text_for_db($text, $maxlength = 0) {
-        if (empty($text)) {
-            return '';
-        }
-
-        // Convert to UTF-8 if needed - use only supported encodings
-        $encodings = ['UTF-8', 'ASCII', 'ISO-8859-1'];
-        $available = mb_list_encodings();
-        foreach (['ISO-8859-2', 'CP1250', 'CP1252'] as $enc) {
-            if (in_array($enc, $available)) {
-                $encodings[] = $enc;
-            }
-        }
-
-        $encoding = @mb_detect_encoding($text, $encodings, true);
-        if ($encoding && $encoding !== 'UTF-8') {
-            $text = @mb_convert_encoding($text, 'UTF-8', $encoding);
-            if ($text === false) {
-                $text = '';
-            }
-        }
-
-        // Remove invalid UTF-8 sequences
-        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-
-        // Remove any remaining non-UTF8 characters
-        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
-
-        // Replace problematic characters that MySQL might reject
-        $text = preg_replace('/[^\x{0009}\x{000A}\x{000D}\x{0020}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u', '?', $text);
-
-        // If preg_replace failed (invalid UTF-8), try a more aggressive cleanup
-        if ($text === null) {
-            $text = iconv('UTF-8', 'UTF-8//IGNORE', $text);
-            if ($text === false) {
-                $text = '';
-            }
-        }
-
-        // Truncate if needed
-        if ($maxlength > 0 && mb_strlen($text, 'UTF-8') > $maxlength) {
-            $text = mb_substr($text, 0, $maxlength - 3, 'UTF-8') . '...';
-        }
-
-        return $text;
+        local_pdfquizgen_log($this->courseid, $this->userid, 'job_failed', $jobid, text_helper::truncate($error, 500));
     }
 
     /**

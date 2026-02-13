@@ -126,6 +126,7 @@ $string['error_file_too_large'] = 'File is too large. Maximum size is {$a} MB.';
 $string['error_invalid_mimetype'] = 'Invalid file type. Only PDF files are supported.';
 $string['error_empty_file'] = 'File is empty.';
 $string['error_extraction_failed'] = 'Failed to extract text from PDF. The file may be scanned or corrupted.';
+$string['error_no_text_extracted'] = 'Could not extract readable text from this PDF. The file may be scanned, image-based, encrypted, or use unsupported encoding. Try using a text-based PDF or contact your administrator to install pdftotext.';
 $string['error_category_creation'] = 'Failed to create question category.';
 $string['error_quiz_creation'] = 'Failed to create quiz activity.';
 $string['error_no_questions_created'] = 'No questions were created. Please try again.';

@@ -80,7 +80,7 @@ class openrouter_client {
         $messages = [
             [
                 'role' => 'system',
-                'content' => 'You are an expert educational content creator specializing in creating high-quality quiz questions from educational materials. You must respond ONLY with valid JSON in the exact format specified.'
+                'content' => 'You are an expert educational content creator specializing in creating high-quality quiz questions from educational materials. You are multilingual and always generate questions in the same language as the source content provided. You must respond ONLY with valid JSON in the exact format specified.'
             ],
             [
                 'role' => 'user',
@@ -115,7 +115,8 @@ class openrouter_client {
         $prompt .= "2. Questions should test understanding of key concepts from the content\n";
         $prompt .= "3. Each question must have a clear, unambiguous correct answer\n";
         $prompt .= "4. Include brief explanations for why answers are correct\n";
-        $prompt .= "5. Respond ONLY with valid JSON in this exact format:\n\n";
+        $prompt .= "5. Generate all questions, answers, and explanations in the SAME LANGUAGE as the content above. If the content is in Czech, write in Czech. If in German, write in German. Match the language of the source material exactly.\n";
+        $prompt .= "6. Respond ONLY with valid JSON in this exact format:\n\n";
 
         $prompt .= $this->get_json_format($questiontype);
 

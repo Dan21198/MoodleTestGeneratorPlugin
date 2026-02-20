@@ -475,6 +475,15 @@ class quiz_generator {
     private function update_quiz_grades(int $quizid): void {
         global $DB;
 
+        $sumgrades = $DB->get_field_sql(
+            'SELECT SUM(maxmark) FROM {quiz_slots} WHERE quizid = ?',
+            [$quizid]
+        );
+        $sumgrades = $sumgrades ?: 0;
+
+        $DB->set_field('quiz', 'sumgrades', $sumgrades, ['id' => $quizid]);
+        $DB->set_field('quiz', 'grade', $sumgrades, ['id' => $quizid]);
+
         try {
             if (class_exists('\mod_quiz\grade_calculator')) {
                 $quizobj = \mod_quiz\quiz_settings::create($quizid);

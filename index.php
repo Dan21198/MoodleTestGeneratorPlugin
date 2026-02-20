@@ -55,6 +55,35 @@ $jobmanager = new \local_pdfquizgen\job_manager($courseid, $USER->id);
 $message = '';
 $messagetype = '';
 
+// Handle message from redirect (PRG pattern)
+$msg = optional_param('msg', '', PARAM_ALPHA);
+switch ($msg) {
+    case 'queued':
+        if (get_string_manager()->string_exists('job_queued', 'local_pdfquizgen')) {
+            $message = get_string('job_queued', 'local_pdfquizgen');
+        } else {
+            $message = 'Quiz generation job queued. Processing will start automatically...';
+        }
+        $messagetype = 'info';
+        break;
+    case 'deleted':
+        $message = get_string('job_deleted_success', 'local_pdfquizgen');
+        $messagetype = 'success';
+        break;
+    case 'delete_error':
+        $message = get_string('job_deleted_error', 'local_pdfquizgen');
+        $messagetype = 'error';
+        break;
+    case 'retried':
+        $message = get_string('job_retried_success', 'local_pdfquizgen');
+        $messagetype = 'success';
+        break;
+    case 'retry_error':
+        $message = get_string('job_retried_error', 'local_pdfquizgen');
+        $messagetype = 'error';
+        break;
+}
+
 // Handle actions
 if ($action && confirm_sesskey()) {
     switch ($action) {
@@ -65,42 +94,39 @@ if ($action && confirm_sesskey()) {
             if ($fileid) {
                 $file = $DB->get_record('files', ['id' => $fileid]);
                 if ($file) {
+                    // Create job - it will be processed via AJAX
                     $jobid = $jobmanager->create_job($fileid, $file->filename, $questioncount, $questiontype);
-                    $result = $jobmanager->process_job($jobid);
 
-                    if ($result['success']) {
-                        $message = get_string('job_created_success', 'local_pdfquizgen', $result);
-                        $messagetype = 'success';
-                    } else {
-                        $message = get_string('job_created_error', 'local_pdfquizgen', $result);
-                        $messagetype = 'error';
-                    }
+                    // Redirect to prevent duplicate submission on refresh (PRG pattern)
+                    $redirecturl = new moodle_url('/local/pdfquizgen/index.php', [
+                        'courseid' => $courseid,
+                        'msg' => 'queued',
+                        'jobid' => $jobid
+                    ]);
+                    redirect($redirecturl);
                 }
             }
             break;
 
         case 'delete':
             if ($jobid) {
-                if ($jobmanager->delete_job($jobid)) {
-                    $message = get_string('job_deleted_success', 'local_pdfquizgen');
-                    $messagetype = 'success';
-                } else {
-                    $message = get_string('job_deleted_error', 'local_pdfquizgen');
-                    $messagetype = 'error';
-                }
+                $success = $jobmanager->delete_job($jobid);
+                $redirecturl = new moodle_url('/local/pdfquizgen/index.php', [
+                    'courseid' => $courseid,
+                    'msg' => $success ? 'deleted' : 'delete_error'
+                ]);
+                redirect($redirecturl);
             }
             break;
 
         case 'retry':
             if ($jobid) {
                 $result = $jobmanager->retry_job($jobid);
-                if ($result['success']) {
-                    $message = get_string('job_retried_success', 'local_pdfquizgen', $result);
-                    $messagetype = 'success';
-                } else {
-                    $message = get_string('job_retried_error', 'local_pdfquizgen', $result);
-                    $messagetype = 'error';
-                }
+                $redirecturl = new moodle_url('/local/pdfquizgen/index.php', [
+                    'courseid' => $courseid,
+                    'msg' => $result['success'] ? 'retried' : 'retry_error'
+                ]);
+                redirect($redirecturl);
             }
             break;
     }
@@ -127,7 +153,7 @@ if ($message) {
             <div class="col-md-2 col-sm-4 col-6">
                 <div class="card text-center">
                     <div class="card-body">
-                        <h3 class="mb-0"><?php echo $stats['total']; ?></h3>
+                        <h3 class="mb-0" data-stat="total"><?php echo $stats['total']; ?></h3>
                         <small class="text-muted"><?php echo get_string('stat_total', 'local_pdfquizgen'); ?></small>
                     </div>
                 </div>
@@ -135,7 +161,7 @@ if ($message) {
             <div class="col-md-2 col-sm-4 col-6">
                 <div class="card text-center">
                     <div class="card-body">
-                        <h3 class="mb-0 text-warning"><?php echo $stats['pending']; ?></h3>
+                        <h3 class="mb-0 text-warning" data-stat="pending"><?php echo $stats['pending']; ?></h3>
                         <small class="text-muted"><?php echo get_string('stat_pending', 'local_pdfquizgen'); ?></small>
                     </div>
                 </div>
@@ -143,7 +169,7 @@ if ($message) {
             <div class="col-md-2 col-sm-4 col-6">
                 <div class="card text-center">
                     <div class="card-body">
-                        <h3 class="mb-0 text-info"><?php echo $stats['processing']; ?></h3>
+                        <h3 class="mb-0 text-info" data-stat="processing"><?php echo $stats['processing']; ?></h3>
                         <small class="text-muted"><?php echo get_string('stat_processing', 'local_pdfquizgen'); ?></small>
                     </div>
                 </div>
@@ -151,7 +177,7 @@ if ($message) {
             <div class="col-md-2 col-sm-4 col-6">
                 <div class="card text-center">
                     <div class="card-body">
-                        <h3 class="mb-0 text-success"><?php echo $stats['completed']; ?></h3>
+                        <h3 class="mb-0 text-success" data-stat="completed"><?php echo $stats['completed']; ?></h3>
                         <small class="text-muted"><?php echo get_string('stat_completed', 'local_pdfquizgen'); ?></small>
                     </div>
                 </div>
@@ -159,7 +185,7 @@ if ($message) {
             <div class="col-md-2 col-sm-4 col-6">
                 <div class="card text-center">
                     <div class="card-body">
-                        <h3 class="mb-0 text-danger"><?php echo $stats['failed']; ?></h3>
+                        <h3 class="mb-0 text-danger" data-stat="failed"><?php echo $stats['failed']; ?></h3>
                         <small class="text-muted"><?php echo get_string('stat_failed', 'local_pdfquizgen'); ?></small>
                     </div>
                 </div>
@@ -254,7 +280,7 @@ if ($message) {
                                 </thead>
                                 <tbody>
                                     <?php foreach ($jobs as $job): ?>
-                                        <tr>
+                                        <tr <?php if ($job->status === 'pending'): ?>data-pending-job="<?php echo $job->id; ?>"<?php endif; ?>>
                                             <td>
                                                 <small><?php echo s($job->filename); ?></small><br>
                                                 <small class="text-muted">
@@ -263,15 +289,18 @@ if ($message) {
                                                 </small>
                                             </td>
                                             <td>
-                                                <span class="<?php echo local_pdfquizgen_get_status_class($job->status); ?>">
+                                                <span class="<?php echo local_pdfquizgen_get_status_class($job->status); ?> job-status-badge">
                                                     <?php echo local_pdfquizgen_get_status_text($job->status); ?>
                                                 </span>
                                             </td>
                                             <td>
                                                 <small><?php echo userdate($job->timecreated, '%d/%m/%Y %H:%M'); ?></small>
                                             </td>
-                                            <td>
-                                                <?php if ($job->status === 'completed' && $job->quizid): ?>
+                                            <td class="job-actions">
+                                                <?php if ($job->status === 'pending'): ?>
+                                                    <span class="spinner-border spinner-border-sm text-warning" role="status" title="<?php echo get_string('status_pending', 'local_pdfquizgen'); ?>"></span>
+                                                    <small class="text-muted ml-1"><?php echo get_string('status_pending', 'local_pdfquizgen'); ?></small>
+                                                <?php elseif ($job->status === 'completed' && $job->quizid): ?>
                                                     <?php
                                                     $cm = get_coursemodule_from_instance('quiz', $job->quizid);
                                                     if ($cm):
@@ -362,4 +391,7 @@ if ($message) {
 </style>
 
 <?php
+// Initialize JavaScript for AJAX processing of pending jobs.
+$PAGE->requires->js_call_amd('local_pdfquizgen/job_processor', 'init', [$courseid]);
+
 echo $OUTPUT->footer();

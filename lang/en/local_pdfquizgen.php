@@ -111,12 +111,14 @@ $string['step_review_desc'] = 'Review and use your new quiz';
 // Messages
 $string['no_pdf_files'] = 'No PDF files found in this course. Please upload PDF files to your course first.';
 $string['no_jobs_yet'] = 'No quiz generation jobs yet. Create your first quiz above!';
+$string['job_queued'] = 'Quiz generation job queued. Processing will start automatically...';
 $string['job_created_success'] = 'Quiz created successfully! <a href="{$a->cmid}">View Quiz</a> ({$a->questioncount} questions)';
 $string['job_created_error'] = 'Failed to create quiz: {$a->error}';
 $string['job_deleted_success'] = 'Job deleted successfully.';
 $string['job_deleted_error'] = 'Failed to delete job.';
 $string['job_retried_success'] = 'Job retried successfully! <a href="{$a->cmid}">View Quiz</a>';
 $string['job_retried_error'] = 'Failed to retry job: {$a->error}';
+$string['job_not_pending'] = 'Job is not pending and cannot be processed.';
 
 // Errors
 $string['error_not_configured'] = 'PDF Quiz Generator is not configured. Please contact your administrator.';

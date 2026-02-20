@@ -26,6 +26,9 @@ namespace local_pdfquizgen;
 
 defined('MOODLE_INTERNAL') || die();
 
+global $CFG;
+require_once($CFG->dirroot . '/local/pdfquizgen/lib.php');
+
 use local_pdfquizgen\util\text_helper;
 
 /**
@@ -85,7 +88,7 @@ class job_manager {
         $jobid = $DB->insert_record('local_pdfquizgen_jobs', $job);
 
         // Log the action
-        local_pdfquizgen_log($this->courseid, $this->userid, 'job_created', $jobid, "File: $filename");
+        \local_pdfquizgen_log($this->courseid, $this->userid, 'job_created', $jobid, "File: $filename");
 
         return $jobid;
     }
@@ -270,7 +273,7 @@ class job_manager {
         $DB->set_field('local_pdfquizgen_jobs', 'timecompleted', time(), ['id' => $jobid]);
         $DB->set_field('local_pdfquizgen_jobs', 'timemodified', time(), ['id' => $jobid]);
 
-        local_pdfquizgen_log($this->courseid, $this->userid, 'job_completed', $jobid, "Quiz ID: $quizid");
+        \local_pdfquizgen_log($this->courseid, $this->userid, 'job_completed', $jobid, "Quiz ID: $quizid");
     }
 
     /**
@@ -289,7 +292,7 @@ class job_manager {
         $DB->set_field('local_pdfquizgen_jobs', 'error_message', $error, ['id' => $jobid]);
         $DB->set_field('local_pdfquizgen_jobs', 'timemodified', time(), ['id' => $jobid]);
 
-        local_pdfquizgen_log($this->courseid, $this->userid, 'job_failed', $jobid, text_helper::truncate($error, 500));
+        \local_pdfquizgen_log($this->courseid, $this->userid, 'job_failed', $jobid, text_helper::truncate($error, 500));
     }
 
     /**
@@ -348,7 +351,7 @@ class job_manager {
         // Delete job
         $DB->delete_records('local_pdfquizgen_jobs', ['id' => $jobid]);
 
-        local_pdfquizgen_log($this->courseid, $this->userid, 'job_deleted', $jobid);
+        \local_pdfquizgen_log($this->courseid, $this->userid, 'job_deleted', $jobid);
 
         return true;
     }

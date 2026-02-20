@@ -15,18 +15,31 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * PDF Quiz Generator plugin version information.
+ * External services for PDF Quiz Generator.
  *
  * @package    local_pdfquizgen
- * @copyright  2025 DAniel Horejsi
+ * @copyright  2025 Daniel Horejsi
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_pdfquizgen';
-$plugin->version = 2025022001;
-$plugin->requires = 2022112800; // Moodle 4.1
-$plugin->maturity = MATURITY_STABLE;
-$plugin->release = '1.1.0';
-$plugin->dependencies = [];
+$functions = [
+    'local_pdfquizgen_process_job' => [
+        'classname'     => 'local_pdfquizgen\external\process_job',
+        'description'   => 'Process a pending quiz generation job',
+        'type'          => 'write',
+        'ajax'          => true,
+        'capabilities'  => 'local/pdfquizgen:use',
+        'services'      => [],
+    ],
+    'local_pdfquizgen_get_job_status' => [
+        'classname'     => 'local_pdfquizgen\external\get_job_status',
+        'description'   => 'Get the status of a quiz generation job',
+        'type'          => 'read',
+        'ajax'          => true,
+        'capabilities'  => 'local/pdfquizgen:use',
+        'services'      => [],
+    ],
+];
+

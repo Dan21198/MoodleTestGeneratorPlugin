@@ -91,6 +91,8 @@ if ($action && confirm_sesskey()) {
             $questioncount = optional_param('questioncount', 10, PARAM_INT);
             $questiontype = optional_param('questiontype', 'multichoice', PARAM_ALPHA);
 
+            $questioncount = max(1, min(100, $questioncount));
+
             if ($fileid) {
                 $file = $DB->get_record('files', ['id' => $fileid]);
                 if ($file) {
@@ -228,13 +230,20 @@ if ($message) {
 
                             <div class="form-group">
                                 <label for="questioncount"><?php echo get_string('question_count', 'local_pdfquizgen'); ?></label>
-                                <select name="questioncount" id="questioncount" class="form-control">
-                                    <?php for ($i = 5; $i <= 50; $i += 5): ?>
-                                        <option value="<?php echo $i; ?>" <?php echo $i == 10 ? 'selected' : ''; ?>>
-                                            <?php echo $i; ?> <?php echo get_string('questions', 'local_pdfquizgen'); ?>
-                                        </option>
-                                    <?php endfor; ?>
-                                </select>
+                                <input type="number"
+                                       name="questioncount"
+                                       id="questioncount"
+                                       class="form-control"
+                                       value="10"
+                                       min="1"
+                                       max="100"
+                                       step="1"
+                                       required
+                                       pattern="[0-9]*"
+                                       inputmode="numeric"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                                       title="<?php echo get_string('question_count_help', 'local_pdfquizgen'); ?>">
+                                <small class="form-text text-muted"><?php echo get_string('question_count_range', 'local_pdfquizgen'); ?></small>
                             </div>
 
                             <div class="form-group">

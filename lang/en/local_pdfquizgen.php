@@ -36,9 +36,14 @@ $string['openrouter_settings_desc'] = 'Configure your OpenRouter API connection 
 $string['openrouter_api_key'] = 'API Key';
 $string['openrouter_api_key_desc'] = 'Your OpenRouter API key. Get one at https://openrouter.ai/';
 $string['openrouter_model'] = 'AI Model';
-$string['openrouter_model_desc'] = 'The AI model to use for question generation.';
+$string['openrouter_model_desc'] = 'Select the AI model to use for question generation. Different models have different capabilities, speeds, and costs.';
+$string['openrouter_model_other'] = 'Other (specify below)';
+$string['openrouter_model_custom'] = 'Custom Model ID';
+$string['openrouter_model_custom_desc'] = 'If you selected "Other" above, enter the OpenRouter model ID here (e.g., "mistralai/mixtral-8x7b-instruct"). Find available models at https://openrouter.ai/models';
 $string['openrouter_timeout'] = 'API Timeout (seconds)';
 $string['openrouter_timeout_desc'] = 'Maximum time to wait for API responses.';
+$string['max_tokens'] = 'Max Response Tokens';
+$string['max_tokens_desc'] = 'Maximum tokens for AI response. Lower values use fewer credits but may truncate output. Recommended: 1000-2000 for 5-10 questions.';
 
 $string['quiz_defaults'] = 'Default Quiz Settings';
 $string['quiz_defaults_desc'] = 'Default settings for generated quizzes.';

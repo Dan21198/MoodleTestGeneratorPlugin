@@ -50,6 +50,9 @@ class openrouter_client {
     /** @var int Max retries */
     private $maxretries;
 
+    /** @var int Max tokens for response */
+    private $maxtokens;
+
     /**
      * Constructor.
      *
@@ -57,13 +60,34 @@ class openrouter_client {
      */
     public function __construct() {
         $this->apikey = get_config('local_pdfquizgen', 'openrouter_api_key');
-        $this->model = get_config('local_pdfquizgen', 'openrouter_model') ?: 'openai/gpt-4o-mini';
+        $this->model = $this->get_configured_model();
         $this->timeout = get_config('local_pdfquizgen', 'openrouter_timeout') ?: 60;
         $this->maxretries = get_config('local_pdfquizgen', 'max_retries') ?: 3;
+        $this->maxtokens = get_config('local_pdfquizgen', 'max_tokens') ?: 2000;
 
         if (empty($this->apikey)) {
             throw new \moodle_exception('error_api_not_configured', 'local_pdfquizgen');
         }
+    }
+
+    /**
+     * Get the configured model, handling custom model option.
+     *
+     * @return string The model identifier to use
+     */
+    private function get_configured_model() {
+        $model = get_config('local_pdfquizgen', 'openrouter_model') ?: 'openai/gpt-4o-mini';
+
+        if ($model === 'other') {
+            $custommodel = get_config('local_pdfquizgen', 'openrouter_model_custom');
+            if (!empty($custommodel)) {
+                return trim($custommodel);
+            }
+            // Fallback to default if custom is empty
+            return 'openai/gpt-4o-mini';
+        }
+
+        return $model;
     }
 
     /**
@@ -80,7 +104,7 @@ class openrouter_client {
         $messages = [
             [
                 'role' => 'system',
-                'content' => 'You are an expert educational content creator specializing in creating high-quality quiz questions from educational materials. You are multilingual and always generate questions in the same language as the source content provided. You must respond ONLY with valid JSON in the exact format specified.'
+                'content' => 'You are an expert educational content creator specializing in creating high-quality quiz questions from educational materials. You are multilingual and always generate questions in the same language as the source content provided. You must respond ONLY with valid JSON in the exact format specified. You MUST generate EXACTLY the number of questions requested - no more, no less.'
             ],
             [
                 'role' => 'user',
@@ -94,7 +118,20 @@ class openrouter_client {
             return $result;
         }
 
-        return $this->parse_questions($result['content']);
+        $parsed = $this->parse_questions($result['content']);
+
+        // Include raw response for debugging (truncated)
+        $parsed['raw_response'] = substr($result['content'], 0, 1000);
+
+        // Log if we got fewer questions than requested
+        if ($parsed['success']) {
+            $actualcount = count($parsed['questions']);
+            if ($actualcount < $numquestions) {
+                debugging("OpenRouter: Requested {$numquestions} questions but only got {$actualcount}", DEBUG_DEVELOPER);
+            }
+        }
+
+        return $parsed;
     }
 
     /**
@@ -108,10 +145,10 @@ class openrouter_client {
     private function build_prompt($content, $numquestions, $questiontype) {
         $typetext = $this->get_question_type_text($questiontype);
 
-        $prompt = "Generate {$numquestions} {$typetext} based on the following educational content.\n\n";
+        $prompt = "Generate EXACTLY {$numquestions} {$typetext} based on the following educational content.\n\n";
         $prompt .= "CONTENT:\n" . $content . "\n\n";
-        $prompt .= "INSTRUCTIONS:\n";
-        $prompt .= "1. Create exactly {$numquestions} questions\n";
+        $prompt .= "CRITICAL REQUIREMENTS:\n";
+        $prompt .= "1. You MUST create EXACTLY {$numquestions} questions - not {$numquestions} minus 1, not {$numquestions} plus 1, but EXACTLY {$numquestions} questions. Count them before responding.\n";
         $prompt .= "2. Questions should test understanding of key concepts from the content\n";
         $prompt .= "3. Each question must have a clear, unambiguous correct answer\n";
         $prompt .= "4. Include brief explanations for why answers are correct\n";
@@ -119,6 +156,8 @@ class openrouter_client {
         $prompt .= "6. Respond ONLY with valid JSON in this exact format:\n\n";
 
         $prompt .= $this->get_json_format($questiontype);
+
+        $prompt .= "\n\nREMEMBER: The JSON must contain EXACTLY {$numquestions} questions in the 'questions' array. Verify the count before responding.";
 
         return $prompt;
     }
@@ -152,36 +191,62 @@ class openrouter_client {
   "questions": [
     {
       "type": "multichoice",
-      "question": "Question text here?",
+      "question": "First question text here?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_answer": 0,
       "explanation": "Explanation of why Option A is correct"
+    },
+    {
+      "type": "multichoice",
+      "question": "Second question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": 1,
+      "explanation": "Explanation of why Option B is correct"
     }
   ]
-}';
+}
+
+Continue this pattern for ALL requested questions. The questions array must contain EXACTLY the number of questions requested.';
         } else if ($questiontype === 'truefalse') {
             return '{
   "questions": [
     {
       "type": "truefalse",
-      "question": "Statement to evaluate?",
+      "question": "First statement to evaluate?",
       "correct_answer": true,
-      "explanation": "Explanation of why the statement is true/false"
+      "explanation": "Explanation of why the statement is true"
+    },
+    {
+      "type": "truefalse",
+      "question": "Second statement to evaluate?",
+      "correct_answer": false,
+      "explanation": "Explanation of why the statement is false"
     }
   ]
-}';
+}
+
+Continue this pattern for ALL requested questions. The questions array must contain EXACTLY the number of questions requested.';
         } else if ($questiontype === 'shortanswer') {
             return '{
   "questions": [
     {
       "type": "shortanswer",
-      "question": "Question requiring a short answer?",
+      "question": "First question requiring a short answer?",
       "correct_answer": "Expected answer",
       "acceptable_answers": ["alternative1", "alternative2"],
       "explanation": "Explanation of the correct answer"
+    },
+    {
+      "type": "shortanswer",
+      "question": "Second question requiring a short answer?",
+      "correct_answer": "Expected answer",
+      "acceptable_answers": ["alternative1"],
+      "explanation": "Explanation of the correct answer"
     }
   ]
-}';
+}
+
+Continue this pattern for ALL requested questions. The questions array must contain EXACTLY the number of questions requested.';
         } else {
             // Mixed
             return '{
@@ -207,8 +272,20 @@ class openrouter_client {
       "explanation": "Explanation"
     }
   ]
-}';
+}
+
+Continue this pattern with a mix of question types for ALL requested questions. The questions array must contain EXACTLY the number of questions requested.';
         }
+    }
+
+    /**
+     * Check if model supports structured JSON output.
+     *
+     * @return bool True if model supports response_format
+     */
+    private function supports_json_mode() {
+        // Only OpenAI models reliably support response_format with json_object
+        return strpos($this->model, 'openai/') === 0;
     }
 
     /**
@@ -218,13 +295,22 @@ class openrouter_client {
      * @return array Result with 'success', 'content', and 'error' keys
      */
     private function make_request($messages) {
+        debugging("OpenRouter: Preparing request to model: {$this->model}", DEBUG_DEVELOPER);
+
         $data = [
             'model' => $this->model,
             'messages' => $messages,
             'temperature' => 0.7,
-            'max_tokens' => 4000,
-            'response_format' => ['type' => 'json_object']
+            'max_tokens' => (int)$this->maxtokens,
         ];
+
+        // Only add response_format for models that support it
+        if ($this->supports_json_mode()) {
+            $data['response_format'] = ['type' => 'json_object'];
+            debugging("OpenRouter: Using JSON mode (OpenAI model detected)", DEBUG_DEVELOPER);
+        } else {
+            debugging("OpenRouter: NOT using JSON mode (non-OpenAI model)", DEBUG_DEVELOPER);
+        }
 
         $headers = [
             'Authorization: Bearer ' . $this->apikey,
@@ -238,6 +324,7 @@ class openrouter_client {
 
         while ($attempt < $this->maxretries) {
             $attempt++;
+            debugging("OpenRouter: Attempt $attempt of {$this->maxretries}", DEBUG_DEVELOPER);
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $this->apiurl);
@@ -252,6 +339,8 @@ class openrouter_client {
             $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curlerror = curl_error($ch);
             curl_close($ch);
+
+            debugging("OpenRouter: HTTP code: $httpcode", DEBUG_DEVELOPER);
 
             if ($curlerror) {
                 $lasterror = 'CURL Error: ' . $curlerror;
@@ -300,20 +389,42 @@ class openrouter_client {
      * @return array Parsed questions
      */
     private function parse_questions($content) {
-        // Try to extract JSON if wrapped in markdown
-        if (preg_match('/```json\s*(.*?)\s*```/s', $content, $matches)) {
-            $content = $matches[1];
-        } else if (preg_match('/```\s*(.*?)\s*```/s', $content, $matches)) {
-            $content = $matches[1];
+        $content = trim($content);
+
+        // Try to extract JSON from various formats
+        // 1. Check for markdown code blocks with json
+        if (preg_match('/```json\s*([\s\S]*?)\s*```/', $content, $matches)) {
+            $content = trim($matches[1]);
         }
+        // 2. Check for generic markdown code blocks
+        else if (preg_match('/```\s*([\s\S]*?)\s*```/', $content, $matches)) {
+            $content = trim($matches[1]);
+        }
+        // 3. Try to find JSON object starting with {
+        else if (preg_match('/(\{[\s\S]*\})/', $content, $matches)) {
+            $content = trim($matches[1]);
+        }
+
+        // Remove any BOM or invisible characters
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
+
+        // Remove JavaScript-style single-line comments (// ...)
+        $content = preg_replace('/,\s*\/\/[^\n]*\n/', ",\n", $content);
+        $content = preg_replace('/\/\/[^\n]*\n/', "\n", $content);
+
+        // Remove trailing commas before ] or } (common JSON error)
+        $content = preg_replace('/,(\s*[\]\}])/', '$1', $content);
 
         $data = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
+            // Include first part of content for debugging
+            $contentpreview = substr($content, 0, 200);
+            debugging("OpenRouter: JSON parse failed. Content preview: " . $contentpreview, DEBUG_DEVELOPER);
             return [
                 'success' => false,
                 'questions' => [],
-                'error' => 'Failed to parse JSON: ' . json_last_error_msg()
+                'error' => 'Failed to parse JSON: ' . json_last_error_msg() . ' (content starts with: ' . substr($content, 0, 100) . '...)'
             ];
         }
 
@@ -366,22 +477,6 @@ class openrouter_client {
             default:
                 return false;
         }
-    }
-
-    /**
-     * Get available models from OpenRouter.
-     *
-     * @return array List of available models
-     */
-    public function get_available_models() {
-        return [
-            'openai/gpt-4o-mini' => 'GPT-4o Mini (Fast & Affordable)',
-            'openai/gpt-4o' => 'GPT-4o (High Quality)',
-            'anthropic/claude-3.5-sonnet' => 'Claude 3.5 Sonnet',
-            'anthropic/claude-3-haiku' => 'Claude 3 Haiku (Fast)',
-            'google/gemini-flash-1.5' => 'Gemini Flash 1.5',
-            'meta-llama/llama-3.1-70b-instruct' => 'Llama 3.1 70B',
-        ];
     }
 
     /**

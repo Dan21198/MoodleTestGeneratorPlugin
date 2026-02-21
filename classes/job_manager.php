@@ -124,16 +124,23 @@ class job_manager {
 
             // Step 2: Generate questions using OpenRouter
             $client = new openrouter_client();
+
             $generation = $client->generate_questions(
                 $extraction['text'],
                 $job->questioncount,
                 $job->questiontype
             );
 
+            // Save raw response for debugging (even if failed)
+            if (!empty($generation['raw_response'])) {
+                $this->update_job_field($jobid, 'api_response', $generation['raw_response']);
+            }
+
             if (!$generation['success']) {
                 $this->fail_job($jobid, $generation['error']);
                 return ['success' => false, 'error' => $generation['error']];
             }
+
 
             $this->update_job_field($jobid, 'api_response', json_encode($generation['questions']));
 

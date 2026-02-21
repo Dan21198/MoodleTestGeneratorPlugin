@@ -43,11 +43,33 @@ if ($hassiteconfig) {
         64
     ));
 
-    $settings->add(new admin_setting_configtext(
+    // Build model choices - avoid get_string in array definition to prevent cache issues
+    $otherstring = get_string('openrouter_model_other', 'local_pdfquizgen');
+    $popularmodels = [
+        'openai/gpt-4o-mini' => 'GPT-4o Mini (OpenAI) - Fast & Affordable',
+        'openai/gpt-4o' => 'GPT-4o (OpenAI) - Most Capable',
+        'anthropic/claude-3.5-sonnet' => 'Claude 3.5 Sonnet (Anthropic) - Excellent Quality',
+        'anthropic/claude-3-haiku' => 'Claude 3 Haiku (Anthropic) - Fast & Cheap',
+        'google/gemini-2.5-pro' => 'Gemini Pro 2.5 (Google) - Great for Long Content',
+        'google/gemini-2.5-flash' => 'Gemini Flash 2.5 (Google) - Fast',
+        'meta-llama/llama-3.1-70b-instruct' => 'Llama 3.1 70B (Meta) - Open Source',
+        'mistralai/mistral-large-2512' => 'Mistral Large (Mistral AI) - European Alternative',
+        'other' => $otherstring,
+    ];
+
+    $settings->add(new admin_setting_configselect(
         'local_pdfquizgen/openrouter_model',
         get_string('openrouter_model', 'local_pdfquizgen'),
         get_string('openrouter_model_desc', 'local_pdfquizgen'),
         'openai/gpt-4o-mini',
+        $popularmodels
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_pdfquizgen/openrouter_model_custom',
+        get_string('openrouter_model_custom', 'local_pdfquizgen'),
+        get_string('openrouter_model_custom_desc', 'local_pdfquizgen'),
+        '',
         PARAM_TEXT
     ));
 
@@ -56,6 +78,14 @@ if ($hassiteconfig) {
         get_string('openrouter_timeout', 'local_pdfquizgen'),
         get_string('openrouter_timeout_desc', 'local_pdfquizgen'),
         '60',
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_pdfquizgen/max_tokens',
+        get_string('max_tokens', 'local_pdfquizgen'),
+        get_string('max_tokens_desc', 'local_pdfquizgen'),
+        '2000',
         PARAM_INT
     ));
 

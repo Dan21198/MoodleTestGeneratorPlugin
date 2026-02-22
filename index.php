@@ -240,7 +240,13 @@ if ($message) {
                                         </div>
                                     </div>
                                     <hr class="my-2">
-                                    <?php foreach ($pdffiles as $file): ?>
+                                    <?php foreach ($pdffiles as $file):
+                                        // Determine file type icon
+                                        $fileicon = 'fa-file-pdf-o text-danger';
+                                        if (strpos($file->mimetype, 'word') !== false || strpos($file->mimetype, 'msword') !== false) {
+                                            $fileicon = 'fa-file-word-o text-primary';
+                                        }
+                                    ?>
                                         <div class="custom-control custom-checkbox">
                                             <input type="checkbox"
                                                    class="custom-control-input pdf-file-checkbox"
@@ -248,6 +254,7 @@ if ($message) {
                                                    value="<?php echo $file->id; ?>"
                                                    id="file-<?php echo $file->id; ?>">
                                             <label class="custom-control-label" for="file-<?php echo $file->id; ?>">
+                                                <i class="fa <?php echo $fileicon; ?>"></i>
                                                 <?php echo s($file->filename); ?>
                                                 <?php if ($file->resource_name): ?>
                                                     <span class="text-muted">(<?php echo s($file->resource_name); ?>)</span>

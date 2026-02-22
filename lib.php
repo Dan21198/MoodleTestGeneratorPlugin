@@ -25,12 +25,14 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/local/pdfquizgen/classes/pdf_extractor.php');
+require_once($CFG->dirroot . '/local/pdfquizgen/classes/word_extractor.php');
+require_once($CFG->dirroot . '/local/pdfquizgen/classes/file_extractor.php');
 require_once($CFG->dirroot . '/local/pdfquizgen/classes/openrouter_client.php');
 require_once($CFG->dirroot . '/local/pdfquizgen/classes/quiz_generator.php');
 require_once($CFG->dirroot . '/local/pdfquizgen/classes/job_manager.php');
 
 /**
- * Get the course files of type PDF.
+ * Get the course files of type PDF or Word.
  *
  * @param int $courseid The course ID
  * @return array Array of file records
@@ -40,23 +42,31 @@ function local_pdfquizgen_get_course_pdf_files($courseid) {
 
     $context = context_course::instance($courseid);
 
+    // Supported MIME types: PDF, DOCX, DOC
+    $mimetypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword'
+    ];
+
+    list($insql, $inparams) = $DB->get_in_or_equal($mimetypes, SQL_PARAMS_NAMED, 'mime');
+
     $sql = "SELECT f.*, r.name as resource_name, r.intro as resource_intro
               FROM {files} f
               JOIN {context} ctx ON f.contextid = ctx.id
               LEFT JOIN {course_modules} cm ON ctx.instanceid = cm.id AND ctx.contextlevel = :modlevel
               LEFT JOIN {resource} r ON cm.instance = r.id
              WHERE (ctx.id = :coursecontext OR ctx.path LIKE :coursepath)
-               AND f.mimetype = :mimetype
+               AND f.mimetype $insql
                AND f.filesize > 0
                AND f.filename != '.'
              ORDER BY f.timecreated DESC";
 
-    $params = [
+    $params = array_merge([
         'coursecontext' => $context->id,
         'coursepath' => $context->path . '/%',
         'modlevel' => CONTEXT_MODULE,
-        'mimetype' => 'application/pdf'
-    ];
+    ], $inparams);
 
     return $DB->get_records_sql($sql, $params);
 }

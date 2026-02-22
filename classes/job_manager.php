@@ -150,20 +150,31 @@ class job_manager {
         $this->update_job_status($jobid, 'processing');
 
         try {
-            // Step 1: Extract text from PDF(s)
-            $extractor = new pdf_extractor();
+            // Step 1: Extract text from file(s) - supports PDF and Word documents
+            $extractor = new file_extractor();
 
             $fileids = [];
-            if (!empty($job->fileids)) {
-                $fileids = json_decode($job->fileids, true);
+            // Check if fileids property exists (may not exist if DB not upgraded yet)
+            $rawFileids = isset($job->fileids) ? $job->fileids : null;
+            if (!empty($rawFileids)) {
+                $fileids = json_decode($rawFileids, true);
+                if (!is_array($fileids)) {
+                    $fileids = [];
+                }
             }
             if (empty($fileids)) {
                 // Fallback to single file
                 $fileids = [$job->fileid];
             }
 
-            // Extract text from all files
-            $alltext = [];
+            // Log which files we're processing
+            \local_pdfquizgen_log($this->courseid, $this->userid, 'processing_files', $jobid,
+                "Processing " . count($fileids) . " files: " . implode(', ', $fileids));
+
+            // Extract text from all files and track lengths
+            $filedata = [];
+            $totallength = 0;
+
             foreach ($fileids as $fileid) {
                 $extraction = $extractor->extract_from_fileid($fileid);
 
@@ -176,41 +187,96 @@ class job_manager {
 
                 $file = $DB->get_record('files', ['id' => $fileid], 'filename');
                 $filename = $file ? $file->filename : "Document";
+                $textlength = strlen($extraction['text']);
 
-                if (count($fileids) > 1) {
-                    $alltext[] = "=== Content from: $filename ===\n" . $extraction['text'];
-                } else {
-                    $alltext[] = $extraction['text'];
-                }
+                $filedata[] = [
+                    'fileid' => $fileid,
+                    'filename' => $filename,
+                    'text' => $extraction['text'],
+                    'length' => $textlength
+                ];
+
+                $totallength += $textlength;
             }
 
+            // Calculate proportional question distribution
+            $totalquestions = $job->questioncount;
+            $questiondistribution = $this->calculate_question_distribution($filedata, $totalquestions);
+
+            // Log distribution for debugging
+            $distlog = "Question distribution for " . count($filedata) . " files (total: $totalquestions): ";
+            foreach ($filedata as $index => $data) {
+                $distlog .= "{$data['filename']}={$questiondistribution[$index]}, ";
+            }
+            \local_pdfquizgen_log($this->courseid, $this->userid, 'question_distribution', $jobid, $distlog);
+
+            // Save combined text for debugging
+            $alltext = [];
+            foreach ($filedata as $data) {
+                if (count($filedata) > 1) {
+                    $alltext[] = "=== Content from: {$data['filename']} ===\n" . $data['text'];
+                } else {
+                    $alltext[] = $data['text'];
+                }
+            }
             $combinedtext = implode("\n\n", $alltext);
             $this->update_job_field($jobid, 'extracted_text', $combinedtext);
 
             // Step 2: Generate questions using OpenRouter
             $client = new openrouter_client();
+            $allquestions = [];
 
-            $generation = $client->generate_questions(
-                $combinedtext,
-                $job->questioncount,
-                $job->questiontype
-            );
+            // Generate questions for each file proportionally
+            foreach ($filedata as $index => $data) {
+                $questioncount = $questiondistribution[$index];
 
-            // Save raw response for debugging (even if failed)
-            if (!empty($generation['raw_response'])) {
-                $this->update_job_field($jobid, 'api_response', $generation['raw_response']);
+                // Skip files with 0 questions allocated
+                if ($questioncount <= 0) {
+                    \local_pdfquizgen_log($this->courseid, $this->userid, 'file_skipped', $jobid,
+                        "Skipping {$data['filename']} - 0 questions allocated");
+                    continue;
+                }
+
+                \local_pdfquizgen_log($this->courseid, $this->userid, 'generating_questions', $jobid,
+                    "Generating $questioncount questions from {$data['filename']} (text length: {$data['length']})");
+
+                $generation = $client->generate_questions(
+                    $data['text'],
+                    $questioncount,
+                    $job->questiontype
+                );
+
+                // Save raw response for debugging (even if failed)
+                if (!empty($generation['raw_response'])) {
+                    $existingResponse = $DB->get_field('local_pdfquizgen_jobs', 'api_response', ['id' => $jobid]);
+                    $newResponse = $existingResponse ? $existingResponse . "\n\n" : '';
+                    $newResponse .= "=== Response for: {$data['filename']} ===\n" . $generation['raw_response'];
+                    $this->update_job_field($jobid, 'api_response', $newResponse);
+                }
+
+                if (!$generation['success']) {
+                    $this->fail_job($jobid, "Error for {$data['filename']}: " . $generation['error']);
+                    return ['success' => false, 'error' => $generation['error']];
+                }
+
+                // Log successful generation
+                $generatedcount = count($generation['questions']);
+                \local_pdfquizgen_log($this->courseid, $this->userid, 'questions_generated', $jobid,
+                    "Generated $generatedcount questions from {$data['filename']}");
+
+                // Add questions from this file
+                $allquestions = array_merge($allquestions, $generation['questions']);
             }
 
-            if (!$generation['success']) {
-                $this->fail_job($jobid, $generation['error']);
-                return ['success' => false, 'error' => $generation['error']];
+            if (empty($allquestions)) {
+                $this->fail_job($jobid, 'No questions were generated from any file');
+                return ['success' => false, 'error' => 'No questions generated'];
             }
 
-
-            $this->update_job_field($jobid, 'api_response', json_encode($generation['questions']));
+            $this->update_job_field($jobid, 'api_response', json_encode($allquestions));
 
             // Store generated questions
-            $this->store_questions($jobid, $generation['questions']);
+            $this->store_questions($jobid, $allquestions);
 
             // Step 3: Create quiz
             $quizname = get_string('generated_quiz_name', 'local_pdfquizgen', [
@@ -219,7 +285,7 @@ class job_manager {
             ]);
 
             $generator = new quiz_generator($this->courseid, $this->userid);
-            $quizresult = $generator->create_quiz($generation['questions'], $quizname);
+            $quizresult = $generator->create_quiz($allquestions, $quizname);
 
             if (!$quizresult['success']) {
                 $this->fail_job($jobid, $quizresult['error']);
@@ -244,6 +310,69 @@ class job_manager {
             $this->fail_job($jobid, $error);
             return ['success' => false, 'error' => $error];
         }
+    }
+
+    /**
+     * Calculate how many questions to generate from each file based on text length.
+     *
+     * @param array $filedata Array of file data with 'length' key
+     * @param int $totalquestions Total number of questions to generate
+     * @return array Array of question counts per file
+     */
+    private function calculate_question_distribution($filedata, $totalquestions) {
+        $totallength = 0;
+        foreach ($filedata as $data) {
+            $totallength += $data['length'];
+        }
+
+        if (count($filedata) <= 1 || $totallength == 0) {
+            return array_fill(0, count($filedata), $totalquestions);
+        }
+
+        $distribution = [];
+        $allocated = 0;
+
+        // First pass: allocate questions using floor (guaranteed minimum)
+        foreach ($filedata as $index => $data) {
+            $proportion = $data['length'] / $totallength;
+            $questions = (int) floor($totalquestions * $proportion);
+
+            // Ensure at least 1 question per file if there's substantial content
+            if ($questions < 1 && $data['length'] > 500) {
+                $questions = 1;
+            }
+
+            $distribution[$index] = $questions;
+            $allocated += $questions;
+        }
+
+        // Second pass: distribute remaining questions to files with most content
+        $remaining = $totalquestions - $allocated;
+        if ($remaining > 0) {
+            // Create array of indices sorted by content length (descending)
+            $sortedIndices = array_keys($filedata);
+            usort($sortedIndices, function($a, $b) use ($filedata) {
+                return $filedata[$b]['length'] - $filedata[$a]['length'];
+            });
+
+            // Distribute remaining questions to files with most content
+            $i = 0;
+            while ($remaining > 0) {
+                $index = $sortedIndices[$i % count($sortedIndices)];
+                $distribution[$index]++;
+                $remaining--;
+                $i++;
+            }
+        }
+
+        // Ensure no negative values (shouldn't happen, but safety check)
+        foreach ($distribution as $index => $count) {
+            if ($count < 0) {
+                $distribution[$index] = 0;
+            }
+        }
+
+        return $distribution;
     }
 
     /**

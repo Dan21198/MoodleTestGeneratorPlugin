@@ -52,12 +52,12 @@ $string['default_question_count_desc'] = 'Default number of questions to generat
 $string['default_question_type'] = 'Default Question Type';
 $string['default_question_type_desc'] = 'Default type of questions to generate.';
 
-$string['pdf_settings'] = 'PDF Processing Settings';
-$string['pdf_settings_desc'] = 'Settings for PDF text extraction.';
-$string['max_pdf_size'] = 'Maximum PDF Size (MB)';
-$string['max_pdf_size_desc'] = 'Maximum file size for PDF processing.';
+$string['pdf_settings'] = 'Document Processing Settings';
+$string['pdf_settings_desc'] = 'Settings for PDF and Word document text extraction.';
+$string['max_pdf_size'] = 'Maximum File Size (MB)';
+$string['max_pdf_size_desc'] = 'Maximum file size for document processing.';
 $string['max_text_length'] = 'Maximum Text Length';
-$string['max_text_length_desc'] = 'Maximum characters to extract from PDF for processing.';
+$string['max_text_length_desc'] = 'Maximum characters to extract from documents for processing.';
 
 $string['advanced_settings'] = 'Advanced Settings';
 $string['advanced_settings_desc'] = 'Advanced configuration options.';
@@ -80,11 +80,11 @@ $string['status_failed'] = 'Failed';
 
 // Main page
 $string['create_new_quiz'] = 'Create New Quiz';
-$string['select_pdf'] = 'Select PDF File';
-$string['select_pdf_files'] = 'Select PDF Files';
-$string['select_pdf_help'] = 'Select one or more PDF files. All selected files will be combined to create a single quiz.';
+$string['select_pdf'] = 'Select Document';
+$string['select_pdf_files'] = 'Select Documents';
+$string['select_pdf_help'] = 'Select one or more PDF or Word files. All selected files will be combined to create a single quiz.';
 $string['select_all'] = 'Select All';
-$string['select_at_least_one'] = 'Please select at least one PDF file.';
+$string['select_at_least_one'] = 'Please select at least one document.';
 $string['question_count'] = 'Number of Questions';
 $string['question_count_help'] = 'Enter a number between 1 and 100';
 $string['question_count_range'] = 'Enter a number between 1 and 100';
@@ -110,8 +110,8 @@ $string['stat_failed'] = 'Failed';
 
 // How it works
 $string['how_it_works'] = 'How It Works';
-$string['step_select_pdf'] = 'Select PDF';
-$string['step_select_pdf_desc'] = 'Choose a PDF file from your course materials';
+$string['step_select_pdf'] = 'Select Document';
+$string['step_select_pdf_desc'] = 'Choose PDF or Word files from your course materials';
 $string['step_configure'] = 'Configure';
 $string['step_configure_desc'] = 'Set the number and type of questions';
 $string['step_generate'] = 'Generate';
@@ -120,7 +120,7 @@ $string['step_review'] = 'Review';
 $string['step_review_desc'] = 'Review and use your new quiz';
 
 // Messages
-$string['no_pdf_files'] = 'No PDF files found in this course. Please upload PDF files to your course first.';
+$string['no_pdf_files'] = 'No PDF or Word files found in this course. Please upload PDF or Word documents to your course first.';
 $string['no_jobs_yet'] = 'No quiz generation jobs yet. Create your first quiz above!';
 $string['job_queued'] = 'Quiz generation job queued. Processing will start automatically...';
 $string['job_queued_multi'] = 'Quiz generation job queued with {$a} files. Processing will start automatically...';
@@ -137,10 +137,10 @@ $string['error_not_configured'] = 'PDF Quiz Generator is not configured. Please 
 $string['error_api_not_configured'] = 'OpenRouter API key is not configured.';
 $string['error_file_not_found'] = 'File not found.';
 $string['error_file_too_large'] = 'File is too large. Maximum size is {$a} MB.';
-$string['error_invalid_mimetype'] = 'Invalid file type. Only PDF files are supported.';
+$string['error_invalid_mimetype'] = 'Invalid file type. Only PDF and Word documents are supported.';
 $string['error_empty_file'] = 'File is empty.';
-$string['error_extraction_failed'] = 'Failed to extract text from PDF. The file may be scanned or corrupted.';
-$string['error_no_text_extracted'] = 'Could not extract readable text from this PDF. The file may be scanned, image-based, encrypted, or use unsupported encoding. Try using a text-based PDF or contact your administrator to install pdftotext.';
+$string['error_extraction_failed'] = 'Failed to extract text from document. The file may be corrupted.';
+$string['error_no_text_extracted'] = 'Could not extract readable text from this document. PDF files may be scanned or image-based, encrypted, or use unsupported encoding. Word files must contain actual text content.';
 $string['error_category_creation'] = 'Failed to create question category.';
 $string['error_quiz_creation'] = 'Failed to create quiz activity.';
 $string['error_no_questions_created'] = 'No questions were created. Please try again.';

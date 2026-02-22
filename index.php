@@ -57,12 +57,13 @@ $messagetype = '';
 
 // Handle message from redirect (PRG pattern)
 $msg = optional_param('msg', '', PARAM_ALPHA);
+$filecount = optional_param('filecount', 1, PARAM_INT);
 switch ($msg) {
     case 'queued':
-        if (get_string_manager()->string_exists('job_queued', 'local_pdfquizgen')) {
-            $message = get_string('job_queued', 'local_pdfquizgen');
+        if ($filecount > 1) {
+            $message = get_string('job_queued_multi', 'local_pdfquizgen', $filecount);
         } else {
-            $message = 'Quiz generation job queued. Processing will start automatically...';
+            $message = get_string('job_queued', 'local_pdfquizgen');
         }
         $messagetype = 'info';
         break;
@@ -90,20 +91,35 @@ if ($action && confirm_sesskey()) {
         case 'create':
             $questioncount = optional_param('questioncount', 10, PARAM_INT);
             $questiontype = optional_param('questiontype', 'multichoice', PARAM_ALPHA);
+            $fileids = optional_param_array('fileids', [], PARAM_INT);
 
             $questioncount = max(1, min(100, $questioncount));
 
-            if ($fileid) {
-                $file = $DB->get_record('files', ['id' => $fileid]);
-                if ($file) {
-                    // Create job - it will be processed via AJAX
-                    $jobid = $jobmanager->create_job($fileid, $file->filename, $questioncount, $questiontype);
+            if (!empty($fileids)) {
+                // Collect file information for all selected files
+                $filenames = [];
+                $validfileids = [];
+                foreach ($fileids as $fid) {
+                    $file = $DB->get_record('files', ['id' => $fid]);
+                    if ($file) {
+                        $validfileids[] = $fid;
+                        $filenames[] = $file->filename;
+                    }
+                }
+
+                if (!empty($validfileids)) {
+                    // Create a single job with multiple files
+                    $combinedfilename = count($filenames) > 1
+                        ? count($filenames) . ' files (' . implode(', ', array_slice($filenames, 0, 3)) . (count($filenames) > 3 ? '...' : '') . ')'
+                        : $filenames[0];
+
+                    $jobid = $jobmanager->create_job_multi($validfileids, $combinedfilename, $questioncount, $questiontype);
 
                     // Redirect to prevent duplicate submission on refresh (PRG pattern)
                     $redirecturl = new moodle_url('/local/pdfquizgen/index.php', [
                         'courseid' => $courseid,
                         'msg' => 'queued',
-                        'jobid' => $jobid
+                        'filecount' => count($validfileids)
                     ]);
                     redirect($redirecturl);
                 }
@@ -208,24 +224,40 @@ if ($message) {
                             <?php echo get_string('no_pdf_files', 'local_pdfquizgen'); ?>
                         </div>
                     <?php else: ?>
-                        <form method="post" action="<?php echo $PAGE->url; ?>">
+                        <form method="post" action="<?php echo $PAGE->url; ?>" id="pdfquizgen-form">
                             <input type="hidden" name="sesskey" value="<?php echo sesskey(); ?>">
                             <input type="hidden" name="action" value="create">
 
                             <div class="form-group">
-                                <label for="fileid"><?php echo get_string('select_pdf', 'local_pdfquizgen'); ?></label>
-                                <select name="fileid" id="fileid" class="form-control" required>
-                                    <option value="">-- <?php echo get_string('select_pdf', 'local_pdfquizgen'); ?> --</option>
+                                <label><?php echo get_string('select_pdf_files', 'local_pdfquizgen'); ?></label>
+                                <div class="pdf-file-selection border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="mb-2">
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" class="custom-control-input" id="select-all-files">
+                                            <label class="custom-control-label font-weight-bold" for="select-all-files">
+                                                <?php echo get_string('select_all', 'local_pdfquizgen'); ?>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <hr class="my-2">
                                     <?php foreach ($pdffiles as $file): ?>
-                                        <option value="<?php echo $file->id; ?>">
-                                            <?php echo s($file->filename); ?>
-                                            <?php if ($file->resource_name): ?>
-                                                (<?php echo s($file->resource_name); ?>)
-                                            <?php endif; ?>
-                                            - <?php echo display_size($file->filesize); ?>
-                                        </option>
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox"
+                                                   class="custom-control-input pdf-file-checkbox"
+                                                   name="fileids[]"
+                                                   value="<?php echo $file->id; ?>"
+                                                   id="file-<?php echo $file->id; ?>">
+                                            <label class="custom-control-label" for="file-<?php echo $file->id; ?>">
+                                                <?php echo s($file->filename); ?>
+                                                <?php if ($file->resource_name): ?>
+                                                    <span class="text-muted">(<?php echo s($file->resource_name); ?>)</span>
+                                                <?php endif; ?>
+                                                <small class="text-muted">- <?php echo display_size($file->filesize); ?></small>
+                                            </label>
+                                        </div>
                                     <?php endforeach; ?>
-                                </select>
+                                </div>
+                                <small class="form-text text-muted"><?php echo get_string('select_pdf_help', 'local_pdfquizgen'); ?></small>
                             </div>
 
                             <div class="form-group">
@@ -256,7 +288,7 @@ if ($message) {
                                 </select>
                             </div>
 
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" id="pdfquizgen-submit" disabled>
                                 <i class="fa fa-magic"></i> <?php echo get_string('generate_quiz', 'local_pdfquizgen'); ?>
                             </button>
                         </form>
@@ -397,7 +429,78 @@ if ($message) {
     border-radius: 50%;
     display: inline-block;
 }
+.pdf-file-selection .custom-control {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+.pdf-file-selection .custom-control-label {
+    cursor: pointer;
+}
+.pdf-file-checkbox:checked + .custom-control-label {
+    font-weight: 500;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select All functionality
+    var selectAllCheckbox = document.getElementById('select-all-files');
+    var fileCheckboxes = document.querySelectorAll('.pdf-file-checkbox');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            fileCheckboxes.forEach(function(checkbox) {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            updateSubmitButton();
+        });
+
+        // Update "Select All" state when individual checkboxes change
+        fileCheckboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                var allChecked = Array.from(fileCheckboxes).every(function(cb) {
+                    return cb.checked;
+                });
+                var someChecked = Array.from(fileCheckboxes).some(function(cb) {
+                    return cb.checked;
+                });
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+                updateSubmitButton();
+            });
+        });
+    }
+
+    // Form validation - require at least one file selected
+    var form = document.getElementById('pdfquizgen-form');
+    var submitBtn = document.getElementById('pdfquizgen-submit');
+
+    function updateSubmitButton() {
+        if (submitBtn) {
+            var anyChecked = Array.from(fileCheckboxes).some(function(cb) {
+                return cb.checked;
+            });
+            submitBtn.disabled = !anyChecked;
+        }
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var anyChecked = Array.from(fileCheckboxes).some(function(cb) {
+                return cb.checked;
+            });
+            if (!anyChecked) {
+                e.preventDefault();
+                alert('<?php echo addslashes(get_string('select_at_least_one', 'local_pdfquizgen')); ?>');
+                return false;
+            }
+        });
+    }
+
+    // Initial state
+    updateSubmitButton();
+});
+</script>
 
 <?php
 // Initialize JavaScript for AJAX processing of pending jobs.

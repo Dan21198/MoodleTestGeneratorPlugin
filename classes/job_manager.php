@@ -73,6 +73,7 @@ class job_manager {
         $job->courseid = $this->courseid;
         $job->userid = $this->userid;
         $job->fileid = $fileid;
+        $job->fileids = json_encode([$fileid]);
         $job->filename = $filename;
         $job->status = 'pending';
         $job->quizid = null;
@@ -89,6 +90,44 @@ class job_manager {
 
         // Log the action
         \local_pdfquizgen_log($this->courseid, $this->userid, 'job_created', $jobid, "File: $filename");
+
+        return $jobid;
+    }
+
+    /**
+     * Create a new job with multiple files.
+     *
+     * @param array $fileids Array of file IDs
+     * @param string $filename Combined filename description
+     * @param int $questioncount Number of questions
+     * @param string $questiontype Question type
+     * @return int The job ID
+     */
+    public function create_job_multi($fileids, $filename, $questioncount, $questiontype) {
+        global $DB;
+
+        $job = new \stdClass();
+        $job->courseid = $this->courseid;
+        $job->userid = $this->userid;
+        $job->fileid = $fileids[0]; // First file for backwards compatibility
+        $job->fileids = json_encode($fileids);
+        $job->filename = $filename;
+        $job->status = 'pending';
+        $job->quizid = null;
+        $job->questioncount = $questioncount;
+        $job->questiontype = $questiontype;
+        $job->extracted_text = null;
+        $job->api_response = null;
+        $job->error_message = null;
+        $job->timecreated = time();
+        $job->timemodified = time();
+        $job->timecompleted = null;
+
+        $jobid = $DB->insert_record('local_pdfquizgen_jobs', $job);
+
+        // Log the action
+        $filecount = count($fileids);
+        \local_pdfquizgen_log($this->courseid, $this->userid, 'job_created', $jobid, "Files: $filecount, Name: $filename");
 
         return $jobid;
     }
@@ -111,22 +150,48 @@ class job_manager {
         $this->update_job_status($jobid, 'processing');
 
         try {
-            // Step 1: Extract text from PDF
+            // Step 1: Extract text from PDF(s)
             $extractor = new pdf_extractor();
-            $extraction = $extractor->extract_from_fileid($job->fileid);
 
-            if (!$extraction['success']) {
-                $this->fail_job($jobid, $extraction['error']);
-                return ['success' => false, 'error' => $extraction['error']];
+            $fileids = [];
+            if (!empty($job->fileids)) {
+                $fileids = json_decode($job->fileids, true);
+            }
+            if (empty($fileids)) {
+                // Fallback to single file
+                $fileids = [$job->fileid];
             }
 
-            $this->update_job_field($jobid, 'extracted_text', $extraction['text']);
+            // Extract text from all files
+            $alltext = [];
+            foreach ($fileids as $fileid) {
+                $extraction = $extractor->extract_from_fileid($fileid);
+
+                if (!$extraction['success']) {
+                    $file = $DB->get_record('files', ['id' => $fileid], 'filename');
+                    $filename = $file ? $file->filename : "file ID $fileid";
+                    $this->fail_job($jobid, "Failed to extract from $filename: " . $extraction['error']);
+                    return ['success' => false, 'error' => $extraction['error']];
+                }
+
+                $file = $DB->get_record('files', ['id' => $fileid], 'filename');
+                $filename = $file ? $file->filename : "Document";
+
+                if (count($fileids) > 1) {
+                    $alltext[] = "=== Content from: $filename ===\n" . $extraction['text'];
+                } else {
+                    $alltext[] = $extraction['text'];
+                }
+            }
+
+            $combinedtext = implode("\n\n", $alltext);
+            $this->update_job_field($jobid, 'extracted_text', $combinedtext);
 
             // Step 2: Generate questions using OpenRouter
             $client = new openrouter_client();
 
             $generation = $client->generate_questions(
-                $extraction['text'],
+                $combinedtext,
                 $job->questioncount,
                 $job->questiontype
             );

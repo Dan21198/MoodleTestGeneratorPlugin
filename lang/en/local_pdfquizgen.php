@@ -81,6 +81,10 @@ $string['status_failed'] = 'Failed';
 // Main page
 $string['create_new_quiz'] = 'Create New Quiz';
 $string['select_pdf'] = 'Select PDF File';
+$string['select_pdf_files'] = 'Select PDF Files';
+$string['select_pdf_help'] = 'Select one or more PDF files. All selected files will be combined to create a single quiz.';
+$string['select_all'] = 'Select All';
+$string['select_at_least_one'] = 'Please select at least one PDF file.';
 $string['question_count'] = 'Number of Questions';
 $string['question_count_help'] = 'Enter a number between 1 and 100';
 $string['question_count_range'] = 'Enter a number between 1 and 100';
@@ -119,6 +123,7 @@ $string['step_review_desc'] = 'Review and use your new quiz';
 $string['no_pdf_files'] = 'No PDF files found in this course. Please upload PDF files to your course first.';
 $string['no_jobs_yet'] = 'No quiz generation jobs yet. Create your first quiz above!';
 $string['job_queued'] = 'Quiz generation job queued. Processing will start automatically...';
+$string['job_queued_multi'] = 'Quiz generation job queued with {$a} files. Processing will start automatically...';
 $string['job_created_success'] = 'Quiz created successfully! <a href="{$a->cmid}">View Quiz</a> ({$a->questioncount} questions)';
 $string['job_created_error'] = 'Failed to create quiz: {$a->error}';
 $string['job_deleted_success'] = 'Job deleted successfully.';

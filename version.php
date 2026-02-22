@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_pdfquizgen';
-$plugin->version = 2025022103;
+$plugin->version = 2025022200;
 $plugin->requires = 2022112800; // Moodle 4.1
 $plugin->maturity = MATURITY_STABLE;
-$plugin->release = '1.3.0';
+$plugin->release = '1.4.0';
 $plugin->dependencies = [];

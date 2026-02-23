@@ -73,7 +73,6 @@ $string['shortanswer'] = 'Short Answer';
 $string['mixed'] = 'Mixed Types';
 
 // Status
-$string['status_pending'] = 'Pending';
 $string['status_processing'] = 'Processing';
 $string['status_completed'] = 'Completed';
 $string['status_failed'] = 'Failed';
@@ -103,7 +102,6 @@ $string['confirm_delete'] = 'Are you sure you want to delete this job and its as
 
 // Statistics
 $string['stat_total'] = 'Total';
-$string['stat_pending'] = 'Pending';
 $string['stat_processing'] = 'Processing';
 $string['stat_completed'] = 'Completed';
 $string['stat_failed'] = 'Failed';
@@ -130,7 +128,7 @@ $string['job_deleted_success'] = 'Job deleted successfully.';
 $string['job_deleted_error'] = 'Failed to delete job.';
 $string['job_retried_success'] = 'Job retried successfully! <a href="{$a->cmid}">View Quiz</a>';
 $string['job_retried_error'] = 'Failed to retry job: {$a->error}';
-$string['job_not_pending'] = 'Job is not pending and cannot be processed.';
+$string['job_not_processing'] = 'Job is not in processing state and cannot be processed.';
 
 // Errors
 $string['error_not_configured'] = 'PDF Quiz Generator is not configured. Please contact your administrator.';
@@ -168,5 +166,5 @@ $string['generated_questions_info'] = 'Questions automatically generated from PD
 $string['default_quiz_intro'] = '<p>This quiz was automatically generated from course materials.</p>';
 
 // Scheduled tasks
-$string['task_process_pending_jobs'] = 'Process pending PDF Quiz Generator jobs';
+$string['task_process_jobs'] = 'Process PDF Quiz Generator jobs';
 $string['task_cleanup_old_data'] = 'Clean up old PDF Quiz Generator data';

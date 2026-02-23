@@ -167,8 +167,8 @@ if ($message) {
 ?>
 <div class="pdfquizgen-dashboard">
     <div class="stats-cards mb-4">
-        <div class="row">
-            <div class="col-md-2 col-sm-4 col-6">
+        <div class="row justify-content-center">
+            <div class="col-md-2 col-sm-3 col-6 mb-2">
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="mb-0" data-stat="total"><?php echo $stats['total']; ?></h3>
@@ -176,15 +176,7 @@ if ($message) {
                     </div>
                 </div>
             </div>
-            <div class="col-md-2 col-sm-4 col-6">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h3 class="mb-0 text-warning" data-stat="pending"><?php echo $stats['pending']; ?></h3>
-                        <small class="text-muted"><?php echo get_string('stat_pending', 'local_pdfquizgen'); ?></small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 col-sm-4 col-6">
+            <div class="col-md-2 col-sm-3 col-6 mb-2">
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="mb-0 text-info" data-stat="processing"><?php echo $stats['processing']; ?></h3>
@@ -192,7 +184,7 @@ if ($message) {
                     </div>
                 </div>
             </div>
-            <div class="col-md-2 col-sm-4 col-6">
+            <div class="col-md-2 col-sm-3 col-6 mb-2">
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="mb-0 text-success" data-stat="completed"><?php echo $stats['completed']; ?></h3>
@@ -200,7 +192,7 @@ if ($message) {
                     </div>
                 </div>
             </div>
-            <div class="col-md-2 col-sm-4 col-6">
+            <div class="col-md-2 col-sm-3 col-6 mb-2">
                 <div class="card text-center">
                     <div class="card-body">
                         <h3 class="mb-0 text-danger" data-stat="failed"><?php echo $stats['failed']; ?></h3>
@@ -328,7 +320,7 @@ if ($message) {
                                 </thead>
                                 <tbody>
                                     <?php foreach ($jobs as $job): ?>
-                                        <tr <?php if ($job->status === 'pending'): ?>data-pending-job="<?php echo $job->id; ?>"<?php endif; ?>>
+                                        <tr <?php if ($job->status === 'processing'): ?>data-processing-job="<?php echo $job->id; ?>"<?php endif; ?>>
                                             <td>
                                                 <small><?php echo s($job->filename); ?></small><br>
                                                 <small class="text-muted">
@@ -345,9 +337,9 @@ if ($message) {
                                                 <small><?php echo userdate($job->timecreated, '%d/%m/%Y %H:%M'); ?></small>
                                             </td>
                                             <td class="job-actions">
-                                                <?php if ($job->status === 'pending'): ?>
-                                                    <span class="spinner-border spinner-border-sm text-warning" role="status" title="<?php echo get_string('status_pending', 'local_pdfquizgen'); ?>"></span>
-                                                    <small class="text-muted ml-1"><?php echo get_string('status_pending', 'local_pdfquizgen'); ?></small>
+                                                <?php if ($job->status === 'processing'): ?>
+                                                    <span class="spinner-border spinner-border-sm text-info" role="status" title="<?php echo get_string('status_processing', 'local_pdfquizgen'); ?>"></span>
+                                                    <small class="text-muted ml-1"><?php echo get_string('status_processing', 'local_pdfquizgen'); ?></small>
                                                 <?php elseif ($job->status === 'completed' && $job->quizid): ?>
                                                     <?php
                                                     $cm = get_coursemodule_from_instance('quiz', $job->quizid);
@@ -504,13 +496,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Initial state
     updateSubmitButton();
 });
 </script>
 
 <?php
-// Initialize JavaScript for AJAX processing of pending jobs.
 $PAGE->requires->js_call_amd('local_pdfquizgen/job_processor', 'init', [$courseid]);
 
 echo $OUTPUT->footer();

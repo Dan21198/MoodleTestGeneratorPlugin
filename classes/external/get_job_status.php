@@ -104,7 +104,7 @@ class get_job_status extends external_api {
      */
     public static function execute_returns() {
         return new external_single_structure([
-            'status' => new external_value(PARAM_ALPHA, 'Job status (pending, processing, completed, failed)'),
+            'status' => new external_value(PARAM_ALPHA, 'Job status (processing, completed, failed)'),
             'quizid' => new external_value(PARAM_INT, 'The quiz ID if completed'),
             'quizurl' => new external_value(PARAM_RAW, 'URL to the quiz if completed'),
             'error' => new external_value(PARAM_RAW, 'Error message if failed'),

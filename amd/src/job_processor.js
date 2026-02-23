@@ -25,11 +25,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     'use strict';
 
     /**
-     * Process a pending job via AJAX.
+     * Process a job via AJAX.
      *
      * @param {number} jobId The job ID to process
      * @param {number} courseId The course ID
-     * @returns {Promise} Promise resolving to the result
+     * @returns {Promise}
      */
     var processJob = function(jobId, courseId) {
         return Ajax.call([{
@@ -107,11 +107,11 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     }
 
                     // Update stats
-                    updateStats('pending', -1);
+                    updateStats('processing', -1);
                     updateStats('completed', 1);
 
-                    // Remove pending attribute
-                    element.removeAttribute('data-pending-job');
+                    // Remove processing attribute
+                    element.removeAttribute('data-processing-job');
                 } else {
                     // Failed
                     if (statusBadge) {
@@ -125,7 +125,7 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                     }
 
                     // Update stats
-                    updateStats('pending', -1);
+                    updateStats('processing', -1);
                     updateStats('failed', 1);
                 }
             })
@@ -142,21 +142,21 @@ define(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 }
 
                 // Update stats
-                updateStats('pending', -1);
+                updateStats('processing', -1);
                 updateStats('failed', 1);
             });
     };
 
     /**
-     * Initialize job processor for pending jobs.
+     * Initialize job processor for processing jobs.
      *
      * @param {number} courseId The course ID
      */
     var init = function(courseId) {
-        var pendingJobs = document.querySelectorAll('[data-pending-job]');
+        var processingJobs = document.querySelectorAll('[data-processing-job]');
 
-        pendingJobs.forEach(function(element) {
-            var jobId = parseInt(element.dataset.pendingJob, 10);
+        processingJobs.forEach(function(element) {
+            var jobId = parseInt(element.dataset.processingJob, 10);
             if (jobId) {
                 processJobWithUI(jobId, courseId, element);
             }

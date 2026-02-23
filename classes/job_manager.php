@@ -75,7 +75,7 @@ class job_manager {
         $job->fileid = $fileid;
         $job->fileids = json_encode([$fileid]);
         $job->filename = $filename;
-        $job->status = 'pending';
+        $job->status = 'processing';
         $job->quizid = null;
         $job->questioncount = $questioncount;
         $job->questiontype = $questiontype;
@@ -112,7 +112,7 @@ class job_manager {
         $job->fileid = $fileids[0]; // First file for backwards compatibility
         $job->fileids = json_encode($fileids);
         $job->filename = $filename;
-        $job->status = 'pending';
+        $job->status = 'processing';
         $job->quizid = null;
         $job->questioncount = $questioncount;
         $job->questiontype = $questiontype;
@@ -575,8 +575,8 @@ class job_manager {
             return ['success' => false, 'error' => 'Only failed jobs can be retried'];
         }
 
-        // Reset job status
-        $DB->set_field('local_pdfquizgen_jobs', 'status', 'pending', ['id' => $jobid]);
+        // Reset job status to processing
+        $DB->set_field('local_pdfquizgen_jobs', 'status', 'processing', ['id' => $jobid]);
         $DB->set_field('local_pdfquizgen_jobs', 'error_message', null, ['id' => $jobid]);
         $DB->set_field('local_pdfquizgen_jobs', 'timemodified', time(), ['id' => $jobid]);
 
@@ -597,7 +597,6 @@ class job_manager {
 
         $stats = [
             'total' => 0,
-            'pending' => 0,
             'processing' => 0,
             'completed' => 0,
             'failed' => 0

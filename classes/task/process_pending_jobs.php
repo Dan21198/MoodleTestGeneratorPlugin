@@ -15,19 +15,19 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Scheduled task to process pending PDF Quiz Generator jobs.
+ * Scheduled task to process PDF Quiz Generator jobs.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace local_pdfquizgen;
+namespace local_pdfquizgen\task;
 
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Task to process pending jobs.
+ * Task to process jobs in processing state.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
@@ -41,7 +41,7 @@ class process_pending_jobs extends \core\task\scheduled_task {
      * @return string
      */
     public function get_name() {
-        return get_string('task_process_pending_jobs', 'local_pdfquizgen');
+        return get_string('task_process_jobs', 'local_pdfquizgen');
     }
 
     /**
@@ -50,12 +50,12 @@ class process_pending_jobs extends \core\task\scheduled_task {
     public function execute() {
         global $DB;
 
-        mtrace('PDF Quiz Generator: Processing pending jobs...');
+        mtrace('PDF Quiz Generator: Processing jobs...');
 
-        // Get pending jobs
+        // Get jobs that are in processing state
         $jobs = $DB->get_records(
             'local_pdfquizgen_jobs',
-            ['status' => 'pending'],
+            ['status' => 'processing'],
             'timecreated ASC',
             '*',
             0,
@@ -63,11 +63,11 @@ class process_pending_jobs extends \core\task\scheduled_task {
         );
 
         if (empty($jobs)) {
-            mtrace('No pending jobs found.');
+            mtrace('No jobs to process.');
             return;
         }
 
-        mtrace('Found ' . count($jobs) . ' pending job(s).');
+        mtrace('Found ' . count($jobs) . ' job(s) to process.');
 
         $success = 0;
         $failed = 0;
@@ -78,7 +78,7 @@ class process_pending_jobs extends \core\task\scheduled_task {
             // Get admin user for processing
             $admin = get_admin();
 
-            $jobmanager = new \local\pdfquizgen\classes\job_manager($job->courseid, $admin->id);
+            $jobmanager = new \local_pdfquizgen\job_manager($job->courseid, $admin->id);
             $result = $jobmanager->process_job($job->id);
 
             if ($result['success']) {

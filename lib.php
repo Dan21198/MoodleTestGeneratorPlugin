@@ -117,7 +117,6 @@ function local_pdfquizgen_is_configured() {
  */
 function local_pdfquizgen_get_status_text($status) {
     $statuses = [
-        'pending' => get_string('status_pending', 'local_pdfquizgen'),
         'processing' => get_string('status_processing', 'local_pdfquizgen'),
         'completed' => get_string('status_completed', 'local_pdfquizgen'),
         'failed' => get_string('status_failed', 'local_pdfquizgen'),
@@ -134,7 +133,6 @@ function local_pdfquizgen_get_status_text($status) {
  */
 function local_pdfquizgen_get_status_class($status) {
     $classes = [
-        'pending' => 'badge badge-warning',
         'processing' => 'badge badge-info',
         'completed' => 'badge badge-success',
         'failed' => 'badge badge-danger',

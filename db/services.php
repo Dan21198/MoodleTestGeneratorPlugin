@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 $functions = [
     'local_pdfquizgen_process_job' => [
         'classname'     => 'local_pdfquizgen\external\process_job',
-        'description'   => 'Process a pending quiz generation job',
+        'description'   => 'Process a quiz generation job',
         'type'          => 'write',
         'ajax'          => true,
         'capabilities'  => 'local/pdfquizgen:use',

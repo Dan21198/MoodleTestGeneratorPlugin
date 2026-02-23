@@ -88,10 +88,10 @@ class process_job extends external_api {
             'userid' => $USER->id,
         ], '*', MUST_EXIST);
 
-        if ($job->status !== 'pending') {
+        if ($job->status !== 'processing') {
             return [
                 'success' => false,
-                'error' => get_string('job_not_pending', 'local_pdfquizgen'),
+                'error' => get_string('job_not_processing', 'local_pdfquizgen'),
                 'quizid' => 0,
                 'quizurl' => '',
             ];

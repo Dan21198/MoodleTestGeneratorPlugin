@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * CLI script to process pending PDF Quiz Generator jobs.
+ * CLI script to process PDF Quiz Generator jobs.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
@@ -44,7 +44,7 @@ list($options, $unrecognized) = cli_get_params(
 );
 
 if ($options['help']) {
-    echo "Process pending PDF Quiz Generator jobs.
+    echo "Process PDF Quiz Generator jobs.
 
 Options:
     -h, --help          Show this help
@@ -53,8 +53,8 @@ Options:
     -d, --dry-run       Show what would be done without processing
 
 Examples:
-    php process_jobs.php              # Process up to 10 pending jobs
-    php process_jobs.php -l 5         # Process up to 5 pending jobs
+    php process_jobs.php              # Process up to 10 jobs
+    php process_jobs.php -l 5         # Process up to 5 jobs
     php process_jobs.php -j 123       # Process specific job
     php process_jobs.php -d           # Dry run
 ";
@@ -83,7 +83,7 @@ if ($jobid) {
 } else {
     $jobs = $DB->get_records(
         'local_pdfquizgen_jobs',
-        ['status' => 'pending'],
+        ['status' => 'processing'],
         'timecreated ASC',
         '*',
         0,
@@ -92,7 +92,7 @@ if ($jobid) {
 }
 
 if (empty($jobs)) {
-    echo "No pending jobs found.\n";
+    echo "No jobs to process.\n";
     exit(0);
 }
 

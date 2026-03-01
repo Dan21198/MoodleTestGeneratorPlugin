@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * External services for PDF Quiz Generator.
+ * External services for MoodleTestGeneratorPlugin.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi

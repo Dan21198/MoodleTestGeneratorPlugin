@@ -316,7 +316,7 @@ Continue this pattern with a mix of question types for ALL requested questions. 
             'Authorization: Bearer ' . $this->apikey,
             'Content-Type: application/json',
             'HTTP-Referer: ' . $GLOBALS['CFG']->wwwroot,
-            'X-Title: Moodle PDF Quiz Generator'
+            'X-Title: Moodle MoodleTestGeneratorPlugin'
         ];
 
         $attempt = 0;

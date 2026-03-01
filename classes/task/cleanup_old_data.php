@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Scheduled task to clean up old PDF Quiz Generator data.
+ * Scheduled task to clean up old MoodleTestGeneratorPlugin data.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
@@ -50,7 +50,7 @@ class cleanup_old_data extends \core\task\scheduled_task {
     public function execute() {
         global $DB;
 
-        mtrace('PDF Quiz Generator: Cleaning up old data...');
+        mtrace('MoodleTestGeneratorPlugin: Cleaning up old data...');
 
         $days = 30;
         $cutoff = time() - ($days * DAYSECS);

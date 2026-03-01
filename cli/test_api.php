@@ -40,7 +40,7 @@ list($options, $unrecognized) = cli_get_params(
 );
 
 if ($options['help']) {
-    echo "Test OpenRouter API connection for PDF Quiz Generator.
+    echo "Test OpenRouter API connection for MoodleTestGeneratorPlugin.
 
 Options:
     -h, --help          Show this help
@@ -53,7 +53,7 @@ Examples:
     exit(0);
 }
 
-echo "PDF Quiz Generator - API Test\n";
+echo "MoodleTestGeneratorPlugin - API Test\n";
 echo "==============================\n\n";
 
 // Check if plugin is configured
@@ -62,7 +62,7 @@ $model = get_config('local_pdfquizgen', 'openrouter_model');
 
 if (empty($apikey)) {
     cli_error("ERROR: OpenRouter API key is not configured!\n" .
-              "Please configure it at: Site Administration > Plugins > Local Plugins > PDF Quiz Generator");
+              "Please configure it at: Site Administration > Plugins > Local Plugins > MoodleTestGeneratorPlugin");
 }
 
 echo "API Key: " . substr($apikey, 0, 10) . "..." . substr($apikey, -4) . "\n";

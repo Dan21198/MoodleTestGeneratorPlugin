@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * CLI script to process PDF Quiz Generator jobs.
+ * CLI script to process MoodleTestGeneratorPlugin jobs.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
@@ -44,7 +44,7 @@ list($options, $unrecognized) = cli_get_params(
 );
 
 if ($options['help']) {
-    echo "Process PDF Quiz Generator jobs.
+    echo "Process MoodleTestGeneratorPlugin jobs.
 
 Options:
     -h, --help          Show this help
@@ -61,7 +61,7 @@ Examples:
     exit(0);
 }
 
-echo "PDF Quiz Generator - Job Processor\n";
+echo "MoodleTestGeneratorPlugin - Job Processor\n";
 echo "===================================\n\n";
 
 $dryrun = $options['dry-run'];

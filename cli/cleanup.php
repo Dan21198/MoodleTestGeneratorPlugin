@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * CLI script to clean up old PDF Quiz Generator data.
+ * CLI script to clean up old MoodleTestGeneratorPlugin data.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
@@ -44,7 +44,7 @@ list($options, $unrecognized) = cli_get_params(
 );
 
 if ($options['help']) {
-    echo "Clean up old PDF Quiz Generator data.
+    echo "Clean up old MoodleTestGeneratorPlugin data.
 
 Options:
     -h, --help          Show this help
@@ -60,7 +60,7 @@ Examples:
     exit(0);
 }
 
-echo "PDF Quiz Generator - Cleanup Tool\n";
+echo "MoodleTestGeneratorPlugin - Cleanup Tool\n";
 echo "==================================\n\n";
 
 $days = $options['days'];

@@ -15,20 +15,20 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Language strings for PDF Quiz Generator plugin.
+ * Language strings for MoodleTestGeneratorPlugin plugin.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['pluginname'] = 'PDF Quiz Generator';
+$string['pluginname'] = 'MoodleTestGeneratorPlugin';
 $string['pluginname_desc'] = 'Automatically generate quizzes from PDF course materials using AI';
 
 // Capabilities
-$string['pdfquizgen:use'] = 'Use PDF Quiz Generator';
-$string['pdfquizgen:manage'] = 'Manage PDF Quiz Generator settings';
-$string['pdfquizgen:viewlogs'] = 'View PDF Quiz Generator logs';
+$string['pdfquizgen:use'] = 'Use MoodleTestGeneratorPlugin';
+$string['pdfquizgen:manage'] = 'Manage MoodleTestGeneratorPlugin settings';
+$string['pdfquizgen:viewlogs'] = 'View MoodleTestGeneratorPlugin logs';
 
 // Settings
 $string['openrouter_settings'] = 'OpenRouter API Settings';
@@ -131,7 +131,7 @@ $string['job_retried_error'] = 'Failed to retry job: {$a->error}';
 $string['job_not_processing'] = 'Job is not in processing state and cannot be processed.';
 
 // Errors
-$string['error_not_configured'] = 'PDF Quiz Generator is not configured. Please contact your administrator.';
+$string['error_not_configured'] = 'MoodleTestGeneratorPlugin is not configured. Please contact your administrator.';
 $string['error_api_not_configured'] = 'OpenRouter API key is not configured.';
 $string['error_file_not_found'] = 'File not found.';
 $string['error_file_too_large'] = 'File is too large. Maximum size is {$a} MB.';
@@ -166,5 +166,5 @@ $string['generated_questions_info'] = 'Questions automatically generated from PD
 $string['default_quiz_intro'] = '<p>This quiz was automatically generated from course materials.</p>';
 
 // Scheduled tasks
-$string['task_process_jobs'] = 'Process PDF Quiz Generator jobs';
-$string['task_cleanup_old_data'] = 'Clean up old PDF Quiz Generator data';
+$string['task_process_jobs'] = 'Process MoodleTestGeneratorPlugin jobs';
+$string['task_cleanup_old_data'] = 'Clean up old MoodleTestGeneratorPlugin data';

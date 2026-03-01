@@ -44,38 +44,6 @@ class pdf_extractor {
     }
 
     /**
-     * Extract text from a PDF file.
-     *
-     * @param int $fileid The file ID in mdl_files
-     * @return array Array with 'success', 'text', and 'error' keys
-     */
-    public function extract_from_fileid($fileid) {
-        global $DB;
-
-        $file = $DB->get_record('files', ['id' => $fileid]);
-        if (!$file) {
-            return [
-                'success' => false,
-                'text' => '',
-                'error' => get_string('error_file_not_found', 'local_pdfquizgen')
-            ];
-        }
-
-        $fs = get_file_storage();
-        $fileobj = $fs->get_file_by_id($fileid);
-
-        if (!$fileobj) {
-            return [
-                'success' => false,
-                'text' => '',
-                'error' => get_string('error_file_not_found', 'local_pdfquizgen')
-            ];
-        }
-
-        return $this->extract_from_storedfile($fileobj);
-    }
-
-    /**
      * Extract text from a stored_file object.
      *
      * @param \stored_file $file The stored file object
@@ -532,54 +500,6 @@ class pdf_extractor {
             'success' => true,
             'text' => $text,
             'error' => '',
-            'methods' => $methods
-        ];
-    }
-
-    /**
-     * Clean up extracted text.
-     *
-     * @param string $text The raw text
-     * @return string Cleaned text
-     * @deprecated Use text_helper::clean_pdf_text() instead
-     */
-    private function clean_text($text) {
-        return text_helper::clean_pdf_text($text);
-    }
-
-    /**
-     * Check if PDF extraction is available.
-     *
-     * @return array Array with 'available' bool and 'methods' array
-     */
-    public function check_availability() {
-        $methods = [];
-
-        // Check pdftotext
-        if (PHP_OS_FAMILY === 'Windows') {
-            exec('where pdftotext 2>nul', $output, $returnVar);
-            if ($returnVar === 0) {
-                $methods[] = 'pdftotext';
-            }
-        } else {
-            $pdftotext = trim((string)shell_exec('which pdftotext 2>/dev/null'));
-            if (!empty($pdftotext)) {
-                $methods[] = 'pdftotext';
-            }
-        }
-
-        // Check Smalot
-        $parserpath = __DIR__ . '/../vendor/autoload.php';
-        if (file_exists($parserpath)) {
-            $methods[] = 'smalot';
-        }
-
-        // Built-in methods are always available as fallback
-        $methods[] = 'streams (built-in)';
-        $methods[] = 'basic (fallback)';
-
-        return [
-            'available' => !empty($methods),
             'methods' => $methods
         ];
     }

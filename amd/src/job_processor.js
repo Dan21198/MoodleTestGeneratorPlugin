@@ -14,7 +14,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Job processor for PDF Quiz Generator.
+ * Job processor for MoodleTestGeneratorPlugin.
  *
  * @module     local_pdfquizgen/job_processor
  * @copyright  2025 Daniel Horejsi

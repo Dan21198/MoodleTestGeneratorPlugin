@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Admin settings for PDF Quiz Generator plugin.
+ * Admin settings for MoodleTestGeneratorPlugin plugin.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi

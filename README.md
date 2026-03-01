@@ -1,26 +1,30 @@
-# PDF Quiz Generator for Moodle
+# MoodleTestGeneratorPlugin for Moodle
 
-A Moodle local plugin that automatically generates quizzes from PDF course materials using AI-powered question generation via OpenRouter API.
+A Moodle local plugin that automatically generates quizzes from PDF and Word documents using AI-powered question generation via OpenRouter API.
 
 ## Features
 
-- **PDF Text Extraction**: Automatically extracts text content from PDF files in your course
-- **AI-Powered Question Generation**: Uses OpenRouter API to generate high-quality quiz questions
-- **Multiple Question Types**: Supports Multiple Choice, True/False, Short Answer, and Mixed question types
+- **Multi-File Support**: Select and process multiple PDF/Word documents at once
+- **PDF Text Extraction**: Multiple extraction methods (pdftotext, Smalot Parser, stream extraction)
+- **Word Document Support**: Full support for DOCX and basic DOC file formats
+- **AI-Powered Question Generation**: Uses OpenRouter API with multiple AI model options
+- **Multiple Question Types**: Supports Multiple Choice, True/False, Short Answer, and Mixed types
+- **Smart Question Distribution**: Questions are distributed across files based on content length
+- **Language Detection**: Questions are generated in the same language as the source document
+- **Asynchronous Processing**: Real-time progress tracking with AJAX-based job processing
 - **Direct Quiz Creation**: Creates Moodle quizzes directly in your course with generated questions
 - **Job Management**: Track and manage quiz generation jobs with detailed status
-- **Retry Failed Jobs**: Easily retry failed quiz generation attempts
 - **Comprehensive Logging**: Full activity logging for auditing and debugging
 
 ## Requirements
 
 - Moodle 4.1 or higher
-- PHP 7.4 or higher
+- PHP 8.0 or higher
 - OpenRouter API key (get one at https://openrouter.ai/)
-- One of the following PDF text extraction methods:
+- For PDF extraction (one of):
   - `pdftotext` command-line tool (recommended)
   - Smalot PDF Parser library (optional, via Composer)
-  - Built-in regex fallback (basic support)
+  - Built-in stream/regex extraction (basic support)
 
 ## Installation
 
@@ -56,252 +60,301 @@ composer require smalot/pdfparser
 1. Visit https://openrouter.ai/
 2. Create an account
 3. Generate an API key
-4. Add credits to your account (if required)
+4. Add credits to your account (required for API usage)
 
 ### 2. Configure Plugin Settings
 
-1. Go to **Site Administration > Plugins > Local Plugins > PDF Quiz Generator**
-2. Enter your OpenRouter API Key
-3. Select your preferred AI Model (default: GPT-4o Mini)
-4. Adjust other settings as needed:
-   - Default question count
-   - Default question type
-   - PDF size limits
-   - API timeout
+Navigate to **Site Administration > Plugins > Local Plugins > MoodleTestGeneratorPlugin**
+
+#### OpenRouter API Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| API Key | - | Your OpenRouter API key |
+| Model | GPT-4o Mini | AI model to use for generation |
+| Custom Model | - | Custom model ID (when "Other" is selected) |
+| Timeout | 60s | API request timeout |
+| Max Tokens | 2000 | Maximum tokens for AI response |
+
+#### Quiz Defaults
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Default Question Count | 10 | Default number of questions |
+| Default Question Type | Multiple Choice | Default question type |
+
+#### Processing Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Max PDF Size | 50 MB | Maximum PDF file size |
+| Max Text Length | 15000 | Maximum characters to process |
+| Enable Logging | Yes | Enable activity logging |
+| Max Retries | 3 | Retry attempts on failure |
 
 ### 3. Set Permissions
 
-By default, users with `editingteacher` or `manager` roles can use the plugin. Adjust permissions at:
+By default, users with `editingteacher` or `manager` roles can use the plugin.
 
-**Site Administration > Users > Permissions > Define Roles**
+Capability: `local/pdfquizgen:use`
 
 ## Usage
 
-### Creating a Quiz from PDF
+### Creating a Quiz
 
 1. Navigate to your course
-2. Go to **Course Administration > PDF Quiz Generator**
-   (or find it in the course settings menu)
-3. Select a PDF file from your course materials
-4. Configure options:
-   - Number of questions (5-50)
+2. Go to **Course Administration > MoodleTestGeneratorPlugin**
+3. **Select files**: Click on PDF/Word documents to select them (multiple selection supported)
+4. **Configure options**:
+   - Number of questions (1-100)
    - Question type (Multiple Choice, True/False, Short Answer, Mixed)
 5. Click **Generate Quiz**
-6. Wait for processing (may take 30-60 seconds)
-7. View your new quiz when complete!
+6. Wait for processing (progress is shown in real-time)
+7. Access your new quiz when complete!
+
+### Multi-File Selection
+
+- Click files to select/deselect them
+- Selected files are highlighted
+- Questions are distributed proportionally based on content length
+- Minimum 1 question per file with sufficient content (>500 characters)
 
 ### Managing Jobs
 
-The main page shows statistics and recent jobs:
-- **Total**: All jobs
-- **Pending**: Waiting to be processed
+The main page displays:
+
+**Statistics Panel**:
+- **Total**: All jobs created
 - **Processing**: Currently being generated
 - **Completed**: Successfully created quizzes
 - **Failed**: Jobs that encountered errors
 
-For each job, you can:
-- View the created quiz (if completed)
-- Retry failed jobs
-- Delete jobs (also removes associated quiz)
+**Job Actions**:
+- **View Quiz**: Opens the created quiz
+- **Retry**: Re-run failed jobs
+- **Delete**: Remove job and associated quiz
 
-## How It Works
+## Supported File Formats
 
-### 1. PDF Text Extraction
-The plugin attempts to extract text from PDF using multiple methods:
-- **pdftotext**: Command-line tool (best results)
-- **Smalot PDF Parser**: PHP library (good results)
-- **Regex fallback**: Basic extraction (limited support)
+| Format | Extension | Support Level |
+|--------|-----------|---------------|
+| PDF | .pdf | Full (with text layer) |
+| Word (Modern) | .docx | Full |
+| Word (Legacy) | .doc | Basic |
 
-### 2. AI Question Generation
-Extracted text is sent to OpenRouter API with a carefully crafted prompt that:
-- Specifies the number and type of questions
-- Requests clear, unambiguous questions
-- Includes correct answers and explanations
-- Returns structured JSON data
+### PDF Requirements
+- Must contain selectable text (not scanned images)
+- For scanned documents, OCR must be applied first
 
-### 3. Quiz Creation
-Generated questions are converted to Moodle question formats:
-- **Multiple Choice**: 4 options with single correct answer
-- **True/False**: Boolean questions
-- **Short Answer**: Free text answers with acceptable variations
+## AI Models
 
-## Troubleshooting
+The plugin supports multiple AI models via OpenRouter:
 
-### "PDF extraction failed" Error
+| Model | Best For | Speed | Quality |
+|-------|----------|-------|---------|
+| `openai/gpt-4o-mini` | Testing, quick generation | Fast | Good |
+| `openai/gpt-4o` | Production, best results | Medium | Excellent |
+| `anthropic/claude-3.5-sonnet` | Complex content | Medium | Excellent |
+| `anthropic/claude-3-haiku` | Speed priority | Fast | Good |
+| `google/gemini-2.5-pro` | Long documents | Medium | Very Good |
+| `google/gemini-2.5-flash` | Quick generation | Fast | Good |
+| `meta-llama/llama-3.1-70b-instruct` | Cost-effective | Medium | Good |
+| `mistralai/mistral-large-2512` | European alternative | Medium | Very Good |
 
-**Problem**: The plugin cannot extract text from your PDF.
+Select "Other" to use any model available on OpenRouter by entering the model ID.
 
-**Solutions**:
-1. Ensure the PDF contains selectable text (not scanned images)
-2. Install `pdftotext` on your server:
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install poppler-utils
+## Question Types
 
-   # CentOS/RHEL
-   sudo yum install poppler-utils
+### Multiple Choice
+- 4 answer options
+- Single correct answer
+- Explanation for correct answer
+- Randomized option order
 
-   # macOS
-   brew install poppler
-   ```
-3. Install Smalot PDF Parser via Composer for better support
+### True/False
+- Boolean statement questions
+- Clear correct answer
+- Explanation provided
 
-### "API Error" Messages
+### Short Answer
+- Text input response
+- Multiple acceptable answers
+- Case-insensitive matching
 
-**Problem**: OpenRouter API is not responding or returning errors.
+### Mixed
+- Combination of all types
+- AI selects appropriate type per question
 
-**Solutions**:
-1. Verify your API key is correct
-2. Check your OpenRouter account has available credits
-3. Increase the API timeout in settings (default: 60 seconds)
-4. Try a different AI model
-5. Check OpenRouter status page for outages
-
-### Questions Not Generated
-
-**Problem**: The AI didn't generate the expected number of questions.
-
-**Solutions**:
-1. Ensure the PDF has sufficient educational content
-2. Try a different question type
-3. Check the extracted text quality in job details
-4. Retry the job
-
-### Plugin Not Showing in Course
-
-**Problem**: Can't find the PDF Quiz Generator link.
-
-**Solutions**:
-1. Verify plugin is installed: **Site Administration > Plugins > Local Plugins**
-2. Check you have the `local/pdfquizgen:use` capability
-3. Purge Moodle caches: **Site Administration > Development > Purge caches**
-
-## API Models Available
-
-The plugin supports various AI models through OpenRouter:
-
-| Model | Description | Best For |
-|-------|-------------|----------|
-| `openai/gpt-4o-mini` | Fast and affordable | Quick generation, testing |
-| `openai/gpt-4o` | High quality | Production use |
-| `anthropic/claude-3.5-sonnet` | Excellent reasoning | Complex content |
-| `anthropic/claude-3-haiku` | Fast Claude model | Speed priority |
-| `google/gemini-flash-1.5` | Google's fast model | Alternative option |
-| `meta-llama/llama-3.1-70b` | Open source | Cost-effective |
-
-## Database Schema
-
-### local_pdfquizgen_jobs
-Stores quiz generation jobs:
-- `id`: Job ID
-- `courseid`: Course ID
-- `userid`: User who created the job
-- `fileid`: PDF file ID
-- `filename`: Original filename
-- `status`: pending/processing/completed/failed
-- `quizid`: Created quiz ID
-- `questioncount`: Number of questions requested
-- `questiontype`: Type of questions
-- `extracted_text`: Text extracted from PDF
-- `api_response`: Raw API response
-- `error_message`: Error details if failed
-- `timecreated/timemodified/timecompleted`: Timestamps
-
-### local_pdfquizgen_questions
-Stores generated questions:
-- `id`: Question ID
-- `jobid`: Parent job ID
-- `questiontext`: Question text
-- `questiontype`: Question type
-- `options`: JSON-encoded options (MCQ)
-- `correctanswer`: Correct answer
-- `explanation`: Answer explanation
-- `moodle_questionid`: Linked Moodle question ID
-
-### local_pdfquizgen_logs
-Activity logs for auditing.
-
-## Development
+## Architecture
 
 ### File Structure
 ```
 local/pdfquizgen/
+├── amd/
+│   ├── src/
+│   │   └── job_processor.js       # Async job processing
+│   └── build/
+│       └── job_processor.min.js
 ├── classes/
-│   ├── pdf_extractor.php      # PDF text extraction
-│   ├── openrouter_client.php  # OpenRouter API client
-│   ├── quiz_generator.php     # Moodle quiz creation
-│   └── job_manager.php        # Job management
+│   ├── external/                   # Moodle External API
+│   │   ├── process_job.php
+│   │   └── get_job_status.php
+│   ├── question/                   # Question type handlers
+│   │   ├── question_type_factory.php
+│   │   ├── question_type_base.php
+│   │   ├── multichoice_question.php
+│   │   ├── truefalse_question.php
+│   │   ├── shortanswer_question.php
+│   │   └── question_helper.php
+│   ├── task/
+│   │   └── cleanup_old_data.php
+│   ├── file_extractor.php          # File extraction coordinator
+│   ├── pdf_extractor.php           # PDF text extraction
+│   ├── word_extractor.php          # Word text extraction
+│   ├── openrouter_client.php       # OpenRouter API client
+│   ├── quiz_generator.php          # Quiz creation orchestrator
+│   └── job_manager.php             # Job lifecycle management
 ├── db/
-│   ├── access.php             # Capabilities
-│   ├── install.xml            # Database schema
-│   └── upgrade.php            # Upgrade scripts
+│   ├── access.php                  # Capabilities
+│   ├── install.xml                 # Database schema
+│   ├── services.php                # External services
+│   └── upgrade.php                 # Database migrations
 ├── lang/en/
-│   └── local_pdfquizgen.php   # Language strings
-├── amd/src/                   # JavaScript (if needed)
-├── templates/                 # Mustache templates (if needed)
-├── index.php                  # Main interface
-├── logs.php                   # Logs viewer
-├── lib.php                    # Library functions
-├── settings.php               # Admin settings
-└── version.php                # Version info
+│   └── local_pdfquizgen.php
+├── index.php                       # Main interface
+├── logs.php                        # Log viewer
+├── lib.php                         # Library functions & hooks
+├── settings.php                    # Admin settings
+└── version.php                     # Plugin version info
 ```
 
-### Hooks
+### Database Schema
 
-The plugin uses these Moodle hooks:
-- `local_pdfquizgen_extend_navigation_course`: Adds link to course navigation
-- `local_pdfquizgen_extend_settings_navigation`: Adds link to settings menu
+#### local_pdfquizgen_jobs
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT | Primary key |
+| courseid | BIGINT | Course ID |
+| userid | BIGINT | User ID |
+| fileids | TEXT | JSON array of file IDs |
+| filename | VARCHAR | Display filename |
+| status | VARCHAR | processing/completed/failed |
+| quizid | BIGINT | Created quiz ID |
+| questioncount | INT | Requested question count |
+| questiontype | VARCHAR | Question type |
+| extracted_text | LONGTEXT | Extracted content |
+| api_response | LONGTEXT | AI response |
+| error_message | TEXT | Error details |
+| timecreated | BIGINT | Creation timestamp |
+| timemodified | BIGINT | Last modified |
+| timecompleted | BIGINT | Completion timestamp |
 
-### Events
+#### local_pdfquizgen_questions
+| Column | Type | Description |
+|--------|------|-------------|
+| id | BIGINT | Primary key |
+| jobid | BIGINT | Parent job ID |
+| questiontext | TEXT | Question content |
+| questiontype | VARCHAR | Type of question |
+| options | TEXT | JSON options (MCQ) |
+| correctanswer | TEXT | Correct answer |
+| explanation | TEXT | Answer explanation |
+| moodle_questionid | BIGINT | Moodle question ID |
+| timecreated | BIGINT | Creation timestamp |
 
-Logged actions:
-- `job_created`: New job created
-- `job_completed`: Job finished successfully
-- `job_failed`: Job failed
-- `job_deleted`: Job deleted
+#### local_pdfquizgen_logs
+Activity logs for auditing and debugging.
 
-## Security Considerations
+## Troubleshooting
 
-1. **API Key Storage**: Stored in Moodle config (encrypted in database)
-2. **File Access**: Only accesses files within course context
-3. **Permissions**: Respects Moodle capability system
-4. **Data Retention**: Jobs and logs can be cleaned up periodically
-5. **API Calls**: All API calls use HTTPS
+### PDF Extraction Failed
+**Solutions**:
+1. Ensure PDF contains selectable text (not scanned images)
+2. Install pdftotext:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install poppler-utils
+   
+   # CentOS/RHEL
+   sudo yum install poppler-utils
+   
+   # macOS
+   brew install poppler
+   ```
+3. Install Smalot PDF Parser: `composer require smalot/pdfparser`
 
-## Performance
+### API Errors
+| Error | Solution |
+|-------|----------|
+| 401 Unauthorized | Verify API key |
+| 402 Payment Required | Add credits to OpenRouter account |
+| 429 Rate Limited | Wait and retry, or use different model |
+| Timeout | Increase timeout in settings |
 
-- PDF extraction happens synchronously (may take a few seconds)
-- API calls timeout after configured duration (default: 60s)
-- Large PDFs are truncated to configured limit (default: 15000 chars)
-- Consider using cron for large batch processing (future feature)
+### Questions Not Generated
+- Ensure document has sufficient educational content
+- Check extracted text quality in job details
+- Try a different AI model
+- Increase question count request
 
-## Future Enhancements
+### Plugin Not Visible
+1. Verify installation: **Site Administration > Plugins > Local Plugins**
+2. Check capability: `local/pdfquizgen:use`
+3. Purge caches: **Site Administration > Development > Purge caches**
 
-Potential improvements:
-- [ ] Asynchronous processing via cron
-- [ ] Batch PDF processing
-- [ ] Question preview before creating quiz
-- [ ] Custom question templates
-- [ ] Support for more question types (Matching, Essay)
-- [ ] Question difficulty levels
-- [ ] Integration with other AI providers
-- [ ] Export/import question banks
+## Scheduled Tasks
+
+The plugin includes a cleanup task that removes old data:
+- Runs daily via Moodle cron
+- Removes completed jobs older than 30 days
+- Cleans up orphaned log entries
+
+## Security
+
+- **API Key**: Stored encrypted in Moodle configuration
+- **File Access**: Restricted to course context
+- **Permissions**: Enforces Moodle capability system
+- **HTTPS**: All external API calls use HTTPS
+- **Session Validation**: All actions validate sesskey
+
+## Performance Notes
+
+- Text extraction: Synchronous (1-10 seconds per file)
+- API calls: Configurable timeout (default 60s)
+- Large documents: Truncated to max_text_length
+- Multi-file: Processed sequentially for reliability
+
+## Version History
+
+### v1.6.0 (Current)
+- Multi-file selection and processing
+- Word document support (DOCX/DOC)
+- Smart question distribution across files
+- Improved job status tracking
+- Real-time progress updates
+
+### v1.5.0
+- Model selection from popular AI models
+- Custom model support
+- Improved PDF extraction
+
+### v1.4.0
+- Asynchronous job processing
+- External API endpoints
+- JavaScript-based UI updates
+
+### v1.0.0
+- Initial release
+- Basic PDF extraction
+- Quiz generation
 
 ## License
 
-This plugin is licensed under the GNU GPL v3 or later.
-
-## Support
-
-For issues, questions, or contributions:
-- GitHub Issues: [repository-url]/issues
-- Email: [your-email]
+This plugin is licensed under the [GNU GPL v3 or later](http://www.gnu.org/copyleft/gpl.html).
 
 ## Credits
 
-Developed for Moodle by [Your Name/Organization].
+**Author**: Daniel Horejsi  
+**Copyright**: 2025
 
-Powered by:
+**Powered by**:
 - [OpenRouter](https://openrouter.ai/) - AI model aggregation
 - [Moodle](https://moodle.org/) - Learning Platform
 - [Smalot PDF Parser](https://github.com/smalot/pdfparser) - PDF parsing (optional)

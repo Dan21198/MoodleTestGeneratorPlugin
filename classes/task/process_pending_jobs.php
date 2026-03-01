@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Scheduled task to process PDF Quiz Generator jobs.
+ * Scheduled task to process MoodleTestGeneratorPlugin jobs.
  *
  * @package    local_pdfquizgen
  * @copyright  2025 Daniel Horejsi
@@ -50,7 +50,7 @@ class process_pending_jobs extends \core\task\scheduled_task {
     public function execute() {
         global $DB;
 
-        mtrace('PDF Quiz Generator: Processing jobs...');
+        mtrace('MoodleTestGeneratorPlugin: Processing jobs...');
 
         // Get jobs that are in processing state
         $jobs = $DB->get_records(

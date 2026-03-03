@@ -292,9 +292,10 @@ Continue this pattern with a mix of question types for ALL requested questions. 
      * Make API request to OpenRouter.
      *
      * @param array $messages The messages array
+     * @param bool $usejsonmode Whether to use JSON response format (default true)
      * @return array Result with 'success', 'content', and 'error' keys
      */
-    private function make_request($messages) {
+    private function make_request($messages, $usejsonmode = true) {
         debugging("OpenRouter: Preparing request to model: {$this->model}", DEBUG_DEVELOPER);
 
         $data = [
@@ -304,12 +305,11 @@ Continue this pattern with a mix of question types for ALL requested questions. 
             'max_tokens' => (int)$this->maxtokens,
         ];
 
-        // Only add response_format for models that support it
-        if ($this->supports_json_mode()) {
+        if ($usejsonmode && $this->supports_json_mode()) {
             $data['response_format'] = ['type' => 'json_object'];
             debugging("OpenRouter: Using JSON mode (OpenAI model detected)", DEBUG_DEVELOPER);
         } else {
-            debugging("OpenRouter: NOT using JSON mode (non-OpenAI model)", DEBUG_DEVELOPER);
+            debugging("OpenRouter: NOT using JSON mode", DEBUG_DEVELOPER);
         }
 
         $headers = [
@@ -492,7 +492,8 @@ Continue this pattern with a mix of question types for ALL requested questions. 
             ]
         ];
 
-        $result = $this->make_request($messages);
+        // Don't use JSON mode for simple connection test
+        $result = $this->make_request($messages, false);
 
         if ($result['success']) {
             return [

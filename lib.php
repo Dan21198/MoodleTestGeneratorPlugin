@@ -51,21 +51,24 @@ function local_quizgen_get_course_pdf_files($courseid) {
 
     list($insql, $inparams) = $DB->get_in_or_equal($mimetypes, SQL_PARAMS_NAMED, 'mime');
 
+    // Only get files from active (non-deleted) course modules
     $sql = "SELECT f.*, r.name as resource_name, r.intro as resource_intro
               FROM {files} f
               JOIN {context} ctx ON f.contextid = ctx.id
-              LEFT JOIN {course_modules} cm ON ctx.instanceid = cm.id AND ctx.contextlevel = :modlevel
-              LEFT JOIN {resource} r ON cm.instance = r.id
-             WHERE (ctx.id = :coursecontext OR ctx.path LIKE :coursepath)
+              JOIN {course_modules} cm ON ctx.instanceid = cm.id AND ctx.contextlevel = :modlevel
+              LEFT JOIN {resource} r ON cm.instance = r.id AND cm.module = (SELECT id FROM {modules} WHERE name = 'resource')
+             WHERE ctx.path LIKE :coursepath
                AND f.mimetype $insql
                AND f.filesize > 0
                AND f.filename != '.'
+               AND cm.deletioninprogress = 0
+               AND cm.course = :courseid
              ORDER BY f.timecreated DESC";
 
     $params = array_merge([
-        'coursecontext' => $context->id,
         'coursepath' => $context->path . '/%',
         'modlevel' => CONTEXT_MODULE,
+        'courseid' => $courseid,
     ], $inparams);
 
     return $DB->get_records_sql($sql, $params);

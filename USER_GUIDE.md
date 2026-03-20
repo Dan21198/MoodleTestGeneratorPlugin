@@ -252,7 +252,7 @@ This can happen when:
 
 ---
 
-##Contact and Support
+## Contact and Support
 
 For technical issues, contact your Moodle administrator or:
 - Create an issue on the GitHub repository

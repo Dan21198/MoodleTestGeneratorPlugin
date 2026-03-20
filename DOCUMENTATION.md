@@ -499,10 +499,3 @@ With a minimum of 1 question for files > 500 characters.
 1. **Enable logging** in settings
 2. **View logs:** `/local/quizgen/logs.php`
 3. **Moodle debug:** Set `$CFG->debug = DEBUG_DEVELOPER`
-
----
-
-## Conclusion
-
-MoodleTestGeneratorPlugin provides a complete solution for automated quiz generation from educational materials. The plugin leverages modern AI models and is designed with extensibility, security, and performance in mind for the Moodle LMS environment.
-

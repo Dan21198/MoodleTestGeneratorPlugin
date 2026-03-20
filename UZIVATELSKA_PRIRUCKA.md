@@ -180,7 +180,6 @@ Plugin používá OpenRouter API, které je placené. Ceny závisí na zvoleném
 
 Pro technické problémy kontaktujte administrátora Moodle nebo:
 - Vytvořte issue na GitHub repozitáři
-- Email: [kontakt administrátora]
 
 ---
 

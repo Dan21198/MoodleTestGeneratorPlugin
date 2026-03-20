@@ -243,33 +243,19 @@ This can happen when:
 
 ---
 
-## Getting Help
-
-### Log Viewer
-Access detailed logs at: **Course > MoodleTestGeneratorPlugin > View Logs**
-
-Logs show:
-- Job creation
-- Text extraction results
-- API calls and responses
-- Quiz creation details
-- Errors with details
-
-### Contact Administrator
-
-If you encounter persistent issues:
-1. Note the job ID and error message
-2. Take a screenshot
-3. Contact your Moodle administrator
-
----
-
 ## Keyboard Shortcuts
 
 | Action | Shortcut |
 |--------|----------|
 | Submit form | Enter |
 | Clear selection | Escape |
+
+---
+
+## Contact and Support
+
+For technical issues, contact your Moodle administrator or:
+- Create an issue on the GitHub repository
 
 ---
 

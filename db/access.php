@@ -13,4 +13,12 @@ $capabilities = [
             'teacher' => CAP_ALLOW,
         ],
     ],
+
+    'local/quizgen:viewlogs' => [
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => [
+            'manager' => CAP_ALLOW,
+        ],
+    ],
 ];

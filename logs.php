@@ -56,7 +56,8 @@ $countsql = "SELECT COUNT(*) FROM {local_quizgen_logs} l $whereclause";
 $totalcount = $DB->count_records_sql($countsql, $params);
 
 // Get logs
-$sql = "SELECT l.*, u.firstname, u.lastname, u.email, c.fullname as coursename
+$sql = "SELECT l.*, u.firstname, u.lastname, u.firstnamephonetic, u.lastnamephonetic,
+               u.middlename, u.alternatename, u.email, c.fullname as coursename
           FROM {local_quizgen_logs} l
           JOIN {user} u ON l.userid = u.id
           LEFT JOIN {course} c ON l.courseid = c.id

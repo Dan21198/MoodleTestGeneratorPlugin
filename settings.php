@@ -170,6 +170,6 @@ if ($hassiteconfig) {
         'local_quizgen_logs',
         get_string('viewlogs', 'local_quizgen'),
         new moodle_url('/local/quizgen/logs.php'),
-        'moodle/site:config'
+        'local/quizgen:viewlogs'
     ));
 }

@@ -405,18 +405,15 @@ class pdf_extractor {
      * @return string Decompressed content
      */
     private function decompress_stream(string $stream, string $objDict): string {
-        // Check if FlateDecode filter is used
         $isFlate = stripos($objDict, '/FlateDecode') !== false ||
                    stripos($objDict, '/Fl') !== false;
 
         if ($isFlate) {
-            // Try gzinflate first (raw deflate without header)
             $result = @gzinflate($stream);
             if ($result !== false) {
                 return $result;
             }
 
-            // Try with different window sizes
             for ($wbits = 15; $wbits >= 8; $wbits--) {
                 $result = @gzinflate($stream, $wbits);
                 if ($result !== false) {
@@ -424,13 +421,11 @@ class pdf_extractor {
                 }
             }
 
-            // Try gzuncompress (zlib format with header)
             $result = @gzuncompress($stream);
             if ($result !== false) {
                 return $result;
             }
 
-            // Try zlib_decode
             if (function_exists('zlib_decode')) {
                 $result = @zlib_decode($stream);
                 if ($result !== false) {
@@ -438,7 +433,6 @@ class pdf_extractor {
                 }
             }
 
-            // Try adding zlib header if missing
             $zlibStream = "\x78\x9c" . $stream;
             $result = @gzuncompress($zlibStream);
             if ($result !== false) {
@@ -446,7 +440,6 @@ class pdf_extractor {
             }
         }
 
-        // Return raw stream if no decompression needed or possible
         return $stream;
     }
 

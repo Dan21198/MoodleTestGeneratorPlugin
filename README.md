@@ -1,13 +1,13 @@
 # MoodleTestGeneratorPlugin for Moodle
 
-A Moodle local plugin that automatically generates quizzes from PDF and Word documents using AI-powered question generation via OpenRouter API.
+A Moodle local plugin that automatically generates quizzes from PDF and Word documents using AI-powered question generation via configurable LLM providers (default: OpenRouter API).
 
 ## Features
 
 - **Multi-File Support**: Select and process multiple PDF/Word documents at once
 - **PDF Text Extraction**: Multiple extraction methods (pdftotext, Smalot Parser, stream extraction)
 - **Word Document Support**: Full support for DOCX and basic DOC file formats
-- **AI-Powered Question Generation**: Uses OpenRouter API with multiple AI model options
+- **AI-Powered Question Generation**: Uses configurable LLM providers with multiple AI model options
 - **Multiple Question Types**: Supports Multiple Choice, True/False, Short Answer, and Mixed types
 - **Smart Question Distribution**: Questions are distributed across files based on content length
 - **Language Detection**: Questions are generated in the same language as the source document
@@ -55,25 +55,30 @@ composer require smalot/pdfparser
 
 ## Configuration
 
-### 1. Get OpenRouter API Key
+### 1. Get Your LLM Provider API Key
 
-1. Visit https://openrouter.ai/
-2. Create an account
+1. Choose your provider (default: OpenRouter at https://openrouter.ai/)
+2. Create an account with that provider
 3. Generate an API key
-4. Add credits to your account (required for API usage)
+4. Add credits to your account if required by the provider
 
 ### 2. Configure Plugin Settings
 
 Navigate to **Site Administration > Plugins > Local Plugins > MoodleTestGeneratorPlugin**
 
-#### OpenRouter API Settings
+#### LLM Provider Settings
+The plugin uses a flexible LLM client architecture that supports multiple AI providers:
+
 | Setting | Default | Description |
 |---------|---------|-------------|
-| API Key | - | Your OpenRouter API key |
-| Model | GPT-4o Mini | AI model to use for generation |
+| LLM Provider | OpenRouter | Which LLM service to use (OpenRouter is currently active) |
+| API Key | - | Your API key for the selected LLM provider |
+| AI Model | GPT-4o Mini | AI model to use for generation |
 | Custom Model | - | Custom model ID (when "Other" is selected) |
-| Timeout | 60s | API request timeout |
+| Timeout | 60s | API request timeout in seconds |
 | Max Tokens | 2000 | Maximum tokens for AI response |
+
+**Note:** The plugin was recently refactored to support multiple LLM providers. See [LLM_ARCHITECTURE.md](LLM_ARCHITECTURE.md) for details on the new architecture and how to add additional providers (OpenAI, Anthropic, etc.).
 
 #### Quiz Defaults
 | Setting | Default | Description |
@@ -145,7 +150,7 @@ The main page displays:
 
 ## AI Models
 
-The plugin supports multiple AI models via OpenRouter:
+The plugin currently uses OpenRouter as the default provider, but the LLM architecture is provider-agnostic and ready for other services:
 
 | Model | Best For | Speed | Quality |
 |-------|----------|-------|---------|
@@ -158,31 +163,33 @@ The plugin supports multiple AI models via OpenRouter:
 | `meta-llama/llama-3.1-70b-instruct` | Cost-effective | Medium | Good |
 | `mistralai/mistral-large-2512` | European alternative | Medium | Very Good |
 
-Select "Other" to use any model available on OpenRouter by entering the model ID.
-
-## Question Types
-
-### Multiple Choice
-- 4 answer options
-- Single correct answer
-- Explanation for correct answer
-- Randomized option order
-
-### True/False
-- Boolean statement questions
-- Clear correct answer
-- Explanation provided
-
-### Short Answer
-- Text input response
-- Multiple acceptable answers
-- Case-insensitive matching
-
-### Mixed
-- Combination of all types
-- AI selects appropriate type per question
+Select "Other" to use a custom model ID supported by the selected provider.
 
 ## Architecture
+
+### LLM Client Layer Architecture
+
+The plugin uses a provider-agnostic LLM layer. `job_manager.php` does not talk to OpenRouter directly anymore; it asks the factory for a client based on configuration.
+
+```
+User / UI
+   │
+   ▼
+job_manager.php
+   │
+   ▼
+llm_factory::create()
+   │
+   ├─ llm_client_interface.php
+   ├─ llm_client_base.php
+   └─ provider implementation in `classes/llm/`
+      ├─ openrouter_client.php (active)
+      ├─ openai_client.php.example (example)
+      └─ future providers
+   │
+   ▼
+OpenRouter / OpenAI / Anthropic / other LLM API
+```
 
 ### File Structure
 ```
@@ -205,25 +212,46 @@ local/quizgen/
 │   │   └── question_helper.php
 │   ├── task/
 │   │   └── cleanup_old_data.php
-│   ├── file_extractor.php          # File extraction coordinator
-│   ├── pdf_extractor.php           # PDF text extraction
-│   ├── word_extractor.php          # Word text extraction
-│   ├── openrouter_client.php       # OpenRouter API client
-│   ├── quiz_generator.php          # Quiz creation orchestrator
-│   └── job_manager.php             # Job lifecycle management
+│   ├── llm/                        # NEW: LLM provider layer
+│   │   ├── llm_client_interface.php
+│   │   ├── llm_client_base.php
+│   │   ├── llm_factory.php
+│   │   ├── openrouter_client.php
+│   │   ├── openai_client.php.example
+│   │   └── README.md
+│   ├── file_extractor.php
+│   ├── pdf_extractor.php
+│   ├── word_extractor.php
+│   ├── openrouter_client.php       # DEPRECATED (compatibility only)
+│   ├── quiz_generator.php
+│   └── job_manager.php
 ├── db/
-│   ├── access.php                  # Capabilities
-│   ├── install.xml                 # Database schema
-│   ├── services.php                # External services
-│   └── upgrade.php                 # Database migrations
+│   ├── access.php
+│   ├── install.xml
+│   ├── services.php
+│   └── upgrade.php
 ├── lang/en/
 │   └── local_quizgen.php
-├── index.php                       # Main interface
-├── logs.php                        # Log viewer
-├── lib.php                         # Library functions & hooks
-├── settings.php                    # Admin settings
-└── version.php                     # Plugin version info
+├── cli/
+│   ├── test_api.php
+│   └── test_llm_factory.php
+├── index.php
+├── logs.php
+├── lib.php
+├── settings.php
+├── version.php
+├── LLM_ARCHITECTURE.md
+├── MIGRATION_GUIDE.md
+├── REFACTORING_QUICK_START.md
+└── README.md
 ```
+
+
+**Benefits:**
+- ✅ Easy to add new providers (OpenAI, Anthropic, local LLMs)
+- ✅ Shared code reduces duplication
+- ✅ Flexible configuration
+- ✅ 100% backward compatible
 
 ### Database Schema
 
@@ -323,7 +351,17 @@ The plugin includes a cleanup task that removes old data:
 
 ## Version History
 
-### v1.6.0 (Current)
+### v1.7.0 (Current) - LLM Client Refactoring
+**New Architecture & Multi-Provider Support**
+- Complete refactoring of LLM client layer
+- Abstracted provider interface for multi-provider support
+- New factory pattern for provider instantiation
+- Base class with shared functionality (prompt building, JSON parsing)
+- Prepared for OpenAI, Anthropic, and other provider integration
+- New test script: `cli/test_llm_factory.php`
+- 100% backward compatible - automatic configuration migration
+
+### v1.6.0
 - Multi-file selection and processing
 - Word document support (DOCX/DOC)
 - Smart question distribution across files

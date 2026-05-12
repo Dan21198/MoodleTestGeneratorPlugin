@@ -27,56 +27,57 @@ defined('MOODLE_INTERNAL') || die();
 if ($hassiteconfig) {
     $settings = new admin_settingpage('local_quizgen', get_string('pluginname', 'local_quizgen'));
 
-    // OpenRouter API Settings
+    // LLM Provider Settings
     $settings->add(new admin_setting_heading(
-        'local_quizgen/openrouter_heading',
-        get_string('openrouter_settings', 'local_quizgen'),
-        get_string('openrouter_settings_desc', 'local_quizgen')
+        'local_quizgen/llm_heading',
+        get_string('llm_settings', 'local_quizgen'),
+        get_string('llm_settings_desc', 'local_quizgen')
     ));
 
+    // Provider selection
+    $providers = \local_quizgen\llm\llm_factory::get_providers();
+    $settings->add(new admin_setting_configselect(
+        'local_quizgen/llm_provider',
+        get_string('llm_provider', 'local_quizgen'),
+        get_string('llm_provider_desc', 'local_quizgen'),
+        'openrouter',
+        $providers
+    ));
+
+    // API Key
     $settings->add(new admin_setting_configtext(
-        'local_quizgen/openrouter_api_key',
-        get_string('openrouter_api_key', 'local_quizgen'),
-        get_string('openrouter_api_key_desc', 'local_quizgen'),
+        'local_quizgen/llm_api_key',
+        get_string('llm_api_key', 'local_quizgen'),
+        get_string('llm_api_key_desc', 'local_quizgen'),
         '',
         PARAM_TEXT,
         64
     ));
 
-    // Build model choices - avoid get_string in array definition to prevent cache issues
-    $otherstring = get_string('openrouter_model_other', 'local_quizgen');
-    $popularmodels = [
-        'openai/gpt-4o-mini' => 'GPT-4o Mini (OpenAI) - Fast & Affordable',
-        'openai/gpt-4o' => 'GPT-4o (OpenAI) - Most Capable',
-        'anthropic/claude-3.5-sonnet' => 'Claude 3.5 Sonnet (Anthropic) - Excellent Quality',
-        'anthropic/claude-3-haiku' => 'Claude 3 Haiku (Anthropic) - Fast & Cheap',
-        'google/gemini-2.5-pro' => 'Gemini Pro 2.5 (Google) - Great for Long Content',
-        'google/gemini-2.5-flash' => 'Gemini Flash 2.5 (Google) - Fast',
-        'meta-llama/llama-3.1-70b-instruct' => 'Llama 3.1 70B (Meta) - Open Source',
-        'mistralai/mistral-large-2512' => 'Mistral Large (Mistral AI) - European Alternative',
-        'other' => $otherstring,
-    ];
-
+    // Model selection (get models from factory)
+    $models = \local_quizgen\llm\llm_factory::get_models_for_provider('openrouter');
     $settings->add(new admin_setting_configselect(
-        'local_quizgen/openrouter_model',
-        get_string('openrouter_model', 'local_quizgen'),
-        get_string('openrouter_model_desc', 'local_quizgen'),
+        'local_quizgen/llm_model',
+        get_string('llm_model', 'local_quizgen'),
+        get_string('llm_model_desc', 'local_quizgen'),
         'openai/gpt-4o-mini',
-        $popularmodels
+        $models
     ));
 
+    // Custom model
     $settings->add(new admin_setting_configtext(
-        'local_quizgen/openrouter_model_custom',
-        get_string('openrouter_model_custom', 'local_quizgen'),
-        get_string('openrouter_model_custom_desc', 'local_quizgen'),
+        'local_quizgen/llm_model_custom',
+        get_string('llm_model_custom', 'local_quizgen'),
+        get_string('llm_model_custom_desc', 'local_quizgen'),
         '',
         PARAM_TEXT
     ));
 
+    // Timeout
     $settings->add(new admin_setting_configtext(
-        'local_quizgen/openrouter_timeout',
-        get_string('openrouter_timeout', 'local_quizgen'),
-        get_string('openrouter_timeout_desc', 'local_quizgen'),
+        'local_quizgen/llm_timeout',
+        get_string('llm_timeout', 'local_quizgen'),
+        get_string('llm_timeout_desc', 'local_quizgen'),
         '60',
         PARAM_INT
     ));

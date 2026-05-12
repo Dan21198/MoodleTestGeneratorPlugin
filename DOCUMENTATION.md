@@ -4,7 +4,7 @@
 
 **Name:** MoodleTestGeneratorPlugin  
 **Component:** `local_quizgen`  
-**Version:** 1.6.0  
+**Version:** 1.7.0  
 **Author:** Daniel Horejší  
 **License:** GNU GPL v3  
 **Minimum Moodle Version:** 4.1 (2022112800)
@@ -44,9 +44,13 @@ MoodleTestGeneratorPlugin is a local plugin for Moodle that automatically genera
 │  ┌─────────────────────────────────────────────────────────────────┐│
 │  │                    QUESTION GENERATION                          ││
 │  │  ┌─────────────────┐  ┌─────────────────────────────────────┐  ││
-│  │  │ OpenRouter      │─▶│ AI Models (GPT-4o, Claude, Gemini)  │  ││
-│  │  │ Client          │  └─────────────────────────────────────┘  ││
-│  │  └─────────────────┘                                            ││
+│  │  │ llm_factory     │─▶│ LLM layer (`classes/llm/`)          │  ││
+│  │  │ (provider select)│  │  ├─ llm_client_interface.php       │  ││
+│  │  └─────────────────┘  │  ├─ llm_client_base.php            │  ││
+│  │                       │  ├─ openrouter_client.php          │  ││
+│  │                       │  ├─ openai_client.php.example      │  ││
+│  │                       │  └─ future providers               │  ││
+│  │                       └─────────────────────────────────────┘  ││
 │  └─────────────────────────────────────────────────────────────────┘│
 │                            │                                        │
 │                            ▼                                        │
@@ -102,10 +106,18 @@ local/quizgen/
 │   ├── util/                      # Utility classes
 │   │   └── text_helper.php        # Text processing utilities
 │   │
+│   ├── llm/                       # LLM client layer (NEW)
+│   │   ├── llm_client_interface.php    # Provider contract
+│   │   ├── llm_client_base.php         # Shared prompt/parsing logic
+│   │   ├── llm_factory.php             # Provider factory
+│   │   ├── openrouter_client.php       # OpenRouter implementation
+│   │   ├── openai_client.php.example    # Example provider implementation
+│   │   └── README.md                   # LLM directory docs
+│   │
 │   ├── file_extractor.php         # File extraction coordinator
 │   ├── pdf_extractor.php          # PDF text extraction
 │   ├── word_extractor.php         # Word text extraction
-│   ├── openrouter_client.php      # OpenRouter API client
+│   ├── openrouter_client.php      # DEPRECATED (compatibility only)
 │   ├── quiz_generator.php         # Quiz generator
 │   └── job_manager.php            # Job management
 │
@@ -120,13 +132,17 @@ local/quizgen/
 │       └── local_quizgen.php   # English translations
 │
 ├── cli/                           # CLI scripts
-│   └── test_api.php               # API testing script
+│   ├── test_api.php               # API testing script
+│   └── test_llm_factory.php       # LLM factory test script
 │
 ├── index.php                      # Main user interface
 ├── logs.php                       # Log viewer
 ├── lib.php                        # Library functions and hooks
 ├── settings.php                   # Administrator settings
 ├── version.php                    # Version information
+├── LLM_ARCHITECTURE.md            # LLM architecture documentation
+├── MIGRATION_GUIDE.md             # LLM migration guide
+├── REFACTORING_QUICK_START.md     # Quick start guide
 ├── thirdpartylibs.xml             # Third-party library declarations
 └── README.md                      # Documentation (English)
 ```
@@ -217,39 +233,58 @@ public function extract($fileid) {
 - Binary parsing
 - Regex text extraction
 
-### 5. OpenRouter Client (`openrouter_client.php`)
+### 5. LLM Client Layer (NEW - Refactored Architecture)
 
-**Purpose:** Communication with OpenRouter API for question generation.
+**Purpose:** Abstract communication with various LLM providers for question generation.
 
-**Configuration:**
-- API key
-- Model (GPT-4o, Claude, Gemini, etc.)
-- Timeout
-- Max tokens
+**Architecture:** The LLM client layer has been completely refactored to support multiple providers:
 
-**Supported Models:**
-| Model | Description |
-|-------|-------------|
-| `openai/gpt-4o-mini` | Fast and affordable |
-| `openai/gpt-4o` | Highest quality |
-| `anthropic/claude-3.5-sonnet` | Excellent quality |
-| `anthropic/claude-3-haiku` | Fast Claude |
-| `google/gemini-2.5-pro` | For long content |
-| `google/gemini-2.5-flash` | Fast Google |
-| `meta-llama/llama-3.1-70b-instruct` | Open source |
-| `mistralai/mistral-large-2512` | European alternative |
+**Key Components:**
+- `llm/llm_client_interface.php` - Contract for all LLM providers
+- `llm/llm_client_base.php` - Shared functionality
+  - Prompt building (system + user prompts)
+  - JSON parsing and validation
+  - Question structure validation
+  - ~350 lines of reusable code
+- `llm/llm_factory.php` - Factory pattern for provider instantiation
+- Provider implementations:
+  - `llm/openrouter_client.php` - OpenRouter implementation (active)
+  - `llm/openai_client.php.example` - Example for adding new providers
 
-**Prompt Structure:**
+**Supported Providers:**
+Currently active:
+- OpenRouter - Multi-model gateway (100+ models including GPT-4o, Claude, Gemini, etc.)
+
+**Usage (Internal):**
 ```php
-$systemPrompt = "You are an expert educational content creator...";
-$userPrompt = "Based on the following educational content, generate {$count} 
-               {$type} questions in the same language as the content...";
+use local_quizgen\llm\llm_factory;
+
+// Factory creates appropriate client based on configuration
+$client = llm_factory::create();
+
+// Generate questions
+$result = $client->generate_questions($content, $count, $type);
+
+// Test connection
+$test = $client->test_connection();
 ```
 
-**Response Processing:**
-- JSON parsing from markdown blocks
-- Question structure validation
-- API error handling
+**Configuration:**
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `llm_provider` | openrouter | LLM provider to use |
+| `llm_api_key` | - | API key for provider |
+| `llm_model` | openai/gpt-4o-mini | Model to use |
+| `llm_model_custom` | - | Custom model ID |
+| `llm_timeout` | 60 | API timeout in seconds |
+| `max_tokens` | 2000 | Max response tokens |
+
+**Backward Compatibility:**
+Old configuration keys still work as fallback:
+- `openrouter_api_key` → `llm_api_key`
+- `openrouter_model` → `llm_model`
+- `openrouter_model_custom` → `llm_model_custom`
+- `openrouter_timeout` → `llm_timeout`
 
 ### 6. Quiz Generator (`quiz_generator.php`)
 
@@ -344,42 +379,43 @@ Logging table for audit.
 ### Sequence Diagram
 
 ```
-User              index.php       JobManager      FileExtractor     OpenRouterClient    QuizGenerator
-    │                 │               │                │                   │                  │
-    │ 1. Select files │               │                │                   │                  │
-    │────────────────▶│               │                │                   │                  │
-    │                 │               │                │                   │                  │
-    │ 2. Submit form  │               │                │                   │                  │
-    │────────────────▶│               │                │                   │                  │
-    │                 │ 3. create_job │                │                   │                  │
-    │                 │──────────────▶│                │                   │                  │
-    │                 │               │                │                   │                  │
-    │                 │ 4. Job ID     │                │                   │                  │
-    │                 │◀──────────────│                │                   │                  │
-    │                 │               │                │                   │                  │
-    │                 │ 5. AJAX:process_job            │                   │                  │
-    │                 │──────────────▶│                │                   │                  │
-    │                 │               │                │                   │                  │
-    │                 │               │ 6. extract()   │                   │                  │
-    │                 │               │───────────────▶│                   │                  │
-    │                 │               │                │                   │                  │
-    │                 │               │ 7. Text        │                   │                  │
-    │                 │               │◀───────────────│                   │                  │
-    │                 │               │                │                   │                  │
-    │                 │               │ 8. generate_questions()            │                  │
-    │                 │               │───────────────────────────────────▶│                  │
-    │                 │               │                │                   │                  │
-    │                 │               │ 9. Questions JSON                  │                  │
-    │                 │               │◀───────────────────────────────────│                  │
-    │                 │               │                │                   │                  │
-    │                 │               │ 10. create_quiz()                                     │
-    │                 │               │────────────────────────────────────────────────────── ▶│
-    │                 │               │                │                   │                  │
-    │                 │               │ 11. Quiz ID, CMID                                     │
-    │                 │               │◀──────────────────────────────────────────────────────│
-    │                 │               │                │                   │                  │
-    │ 12. Result      │               │                │                   │                  │
-    │◀────────────────│               │                │                   │                  │
+User              index.php       JobManager      FileExtractor     llm_factory       LLM Client     QuizGenerator
+    │                 │               │                │                 │                │                  │
+    │ 1. Select files │               │                │                 │                │                  │
+    │────────────────▶│               │                │                 │                │                  │
+    │                 │               │                │                 │                │                  │
+    │ 2. Submit form  │               │                │                 │                │                  │
+    │────────────────▶│               │                │                 │                │                  │
+    │                 │ 3. create_job │                │                 │                │                  │
+    │                 │──────────────▶│                │                 │                │                  │
+    │                 │               │                │                 │                │                  │
+    │                 │ 4. Job ID     │                │                 │                │                  │
+    │                 │◀──────────────│                │                 │                │                  │
+    │                 │               │                │                 │                │                  │
+    │                 │ 5. AJAX:process_job            │                 │                │                  │
+    │                 │──────────────▶│                │                 │                │                  │
+    │                 │               │                │ 6. extract()    │                │                  │
+    │                 │               │───────────────▶│                 │                │                  │
+    │                 │               │                │                 │                │                  │
+    │                 │               │ 7. Text        │                 │                │                  │
+    │                 │               │◀───────────────│                 │                │                  │
+    │                 │               │                │ 8. create()    │                │                  │
+    │                 │               │────────────────────────────────▶│                │                  │
+    │                 │               │                │                 │                │                  │
+    │                 │               │                │ 9. generate_questions()         │                  │
+    │                 │               │──────────────────────────────────────────────────▶│                  │
+    │                 │               │                │                 │                │                  │
+    │                 │               │                │ 10. Questions JSON              │                  │
+    │                 │               │◀──────────────────────────────────────────────────│                  │
+    │                 │               │                │                 │                │                  │
+    │                 │               │ 11. create_quiz()                                │                  │
+    │                 │               │──────────────────────────────────────────────────▶│                  │
+    │                 │               │                │                 │                │                  │
+    │                 │               │ 12. Quiz ID, CMID                                │                  │
+    │                 │               │◀──────────────────────────────────────────────────│                  │
+    │                 │               │                │                 │                │                  │
+    │ 13. Result      │               │                │                 │                │                  │
+    │◀────────────────│               │                │                 │                │                  │
 ```
 
 ---
@@ -430,19 +466,33 @@ User              index.php       JobManager      FileExtractor     OpenRouterCl
 
 Path: **Site Administration > Plugins > Local Plugins > MoodleTestGeneratorPlugin**
 
+#### LLM Provider Settings (NEW - Refactored)
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `openrouter_api_key` | - | OpenRouter API key |
-| `openrouter_model` | gpt-4o-mini | Selected AI model |
-| `openrouter_model_custom` | - | Custom model (if "other") |
-| `openrouter_timeout` | 60 | API timeout in seconds |
-| `max_tokens` | 2000 | Max tokens for response |
-| `default_question_count` | 10 | Default question count |
+| `llm_provider` | openrouter | LLM provider to use |
+| `llm_api_key` | - | API key for selected provider |
+| `llm_model` | openai/gpt-4o-mini | Selected AI model |
+| `llm_model_custom` | - | Custom model ID (if "Other" selected) |
+| `llm_timeout` | 60 | API timeout in seconds |
+| `max_tokens` | 2000 | Max tokens for AI response |
+
+**Note:** The plugin was refactored to support multiple LLM providers. Configuration is now provider-agnostic and can be easily extended for OpenAI, Anthropic, or other services. See [LLM_ARCHITECTURE.md](LLM_ARCHITECTURE.md) for details.
+
+**Backward Compatibility:** Old configuration keys (`openrouter_*`) still work as fallback for automatic migration.
+
+#### Quiz Defaults
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `default_question_count` | 10 | Default number of questions |
 | `default_question_type` | multichoice | Default question type |
+
+#### Processing Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
 | `max_pdf_size` | 50 | Max PDF size in MB |
 | `max_text_length` | 15000 | Max extracted text length |
-| `enable_logging` | 1 | Enable logging |
-| `max_retries` | 3 | Retry count on error |
+| `enable_logging` | 1 | Enable activity logging |
+| `max_retries` | 3 | Retry count on API error |
 
 ### Permissions
 

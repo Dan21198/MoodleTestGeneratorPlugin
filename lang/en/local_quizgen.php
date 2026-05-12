@@ -30,18 +30,26 @@ $string['quizgen:use'] = 'Use MoodleTestGeneratorPlugin';
 $string['quizgen:manage'] = 'Manage MoodleTestGeneratorPlugin settings';
 $string['quizgen:viewlogs'] = 'View MoodleTestGeneratorPlugin logs';
 
-// Settings
-$string['openrouter_settings'] = 'OpenRouter API Settings';
-$string['openrouter_settings_desc'] = 'Configure your OpenRouter API connection for AI-powered question generation.';
-$string['openrouter_api_key'] = 'API Key';
-$string['openrouter_api_key_desc'] = 'Your OpenRouter API key. Get one at https://openrouter.ai/';
-$string['openrouter_model'] = 'AI Model';
-$string['openrouter_model_desc'] = 'Select the AI model to use for question generation. Different models have different capabilities, speeds, and costs.';
-$string['openrouter_model_other'] = 'Other (specify below)';
-$string['openrouter_model_custom'] = 'Custom Model ID';
-$string['openrouter_model_custom_desc'] = 'If you selected "Other" above, enter the OpenRouter model ID here (e.g., "mistralai/mixtral-8x7b-instruct"). Find available models at https://openrouter.ai/models';
-$string['openrouter_timeout'] = 'API Timeout (seconds)';
-$string['openrouter_timeout_desc'] = 'Maximum time to wait for API responses.';
+// LLM Settings
+$string['llm_settings'] = 'Language Model (LLM) Settings';
+$string['llm_settings_desc'] = 'Configure your LLM provider and API credentials for AI-powered question generation.';
+
+$string['llm_provider'] = 'LLM Provider';
+$string['llm_provider_desc'] = 'Select the service to use for generating questions. Different providers have different capabilities, speeds, and costs.';
+
+$string['llm_api_key'] = 'API Key';
+$string['llm_api_key_desc'] = 'Your API key for the selected provider. Keep this secure and never share it.';
+
+$string['llm_model'] = 'AI Model';
+$string['llm_model_desc'] = 'Select the AI model to use. Available models depend on your chosen provider.';
+
+$string['llm_model_custom_label'] = 'Other (specify below)';
+$string['llm_model_custom'] = 'Custom Model ID';
+$string['llm_model_custom_desc'] = 'If you selected "Other" above, enter the model ID here (e.g., "gpt-4o" for OpenAI, "claude-3-haiku" for Anthropic, or "mistralai/mixtral-8x7b-instruct" for OpenRouter).';
+
+$string['llm_timeout'] = 'API Timeout (seconds)';
+$string['llm_timeout_desc'] = 'Maximum time to wait for API responses. Increase if you have network delays.';
+
 $string['max_tokens'] = 'Max Response Tokens';
 $string['max_tokens_desc'] = 'Maximum tokens for AI response. Lower values use fewer credits but may truncate output. Recommended: 1000-2000 for 5-10 questions.';
 
@@ -132,7 +140,8 @@ $string['job_not_processing'] = 'Job is not in processing state and cannot be pr
 
 // Errors
 $string['error_not_configured'] = 'MoodleTestGeneratorPlugin is not configured. Please contact your administrator.';
-$string['error_api_not_configured'] = 'OpenRouter API key is not configured.';
+$string['error_api_not_configured'] = 'LLM API key is not configured.';
+$string['error_invalid_provider'] = 'Invalid LLM provider: {$a}';
 $string['error_file_not_found'] = 'File not found.';
 $string['error_file_too_large'] = 'File is too large. Maximum size is {$a} MB.';
 $string['error_invalid_mimetype'] = 'Invalid file type. Only PDF and Word documents are supported.';

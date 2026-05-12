@@ -4,7 +4,7 @@
 
 **Název:** MoodleTestGeneratorPlugin  
 **Komponenta:** `local_quizgen`  
-**Verze:** 1.6.0  
+**Verze:** 1.7.0  
 **Autor:** Daniel Hořejší  
 **Licence:** GNU GPL v3  
 **Minimální verze Moodle:** 4.1 (2022112800)
@@ -43,10 +43,14 @@ MoodleTestGeneratorPlugin je lokální plugin pro Moodle, který automaticky gen
 │                            ▼                                        │
 │  ┌─────────────────────────────────────────────────────────────────┐│
 │  │                    GENEROVÁNÍ OTÁZEK                            ││
-│  │  ┌─────────────────┐  ┌─────────────────────────────────────┐  ││
-│  │  │ OpenRouter      │─▶│ AI Modely (GPT-4o, Claude, Gemini)  │  ││
-│  │  │ Client          │  └─────────────────────────────────────┘  ││
-│  │  └─────────────────┘                                            ││
+│  │  ┌──────────────────────┐  ┌─────────────────────────────────┐  ││
+│  │  │ llm_factory          │─▶│ classes/llm/                    │  ││
+│  │  │ (výběr providera)     │  │  ├─ llm_client_interface.php    │  ││
+│  │  └──────────────────────┘  │  ├─ llm_client_base.php         │  ││
+│  │                             │  ├─ openrouter_client.php      │  ││
+│  │                             │  ├─ openai_client.php.example  │  ││
+│  │                             │  └─ další providery            │  ││
+│  │                             └─────────────────────────────────┘  ││
 │  └─────────────────────────────────────────────────────────────────┘│
 │                            │                                        │
 │                            ▼                                        │
@@ -101,10 +105,18 @@ local/quizgen/
 │   │
 │   ├── util/                      # Utility třídy
 │   │
+│   ├── llm/                       # LLM provider vrstva (NOVÉ)
+│   │   ├── llm_client_interface.php    # Rozhraní providerů
+│   │   ├── llm_client_base.php         # Sdílená logika
+│   │   ├── llm_factory.php             # Factory pro výběr providera
+│   │   ├── openrouter_client.php       # OpenRouter implementace
+│   │   ├── openai_client.php.example   # Příklad dalšího providera
+│   │   └── README.md                   # Dokumentace složky llm
+│   │
 │   ├── file_extractor.php         # Koordinátor extrakce souborů
 │   ├── pdf_extractor.php          # Extrakce textu z PDF
 │   ├── word_extractor.php         # Extrakce textu z Word
-│   ├── openrouter_client.php      # OpenRouter API klient
+│   ├── openrouter_client.php      # Zastaralé API rozhraní (kompatibilita)
 │   ├── quiz_generator.php         # Generátor kvízů
 │   └── job_manager.php            # Správa úloh
 │
@@ -116,16 +128,22 @@ local/quizgen/
 │
 ├── lang/                          # Jazykové soubory
 │   └── en/
-│       └── local_quizgen.php   # Anglické překlady
+│       └── local_quizgen.php      # Anglické překlady
 │
 ├── cli/                           # CLI skripty
+│   ├── test_api.php               # Test API
+│   └── test_llm_factory.php       # Test nové LLM factory
 │
 ├── index.php                      # Hlavní uživatelské rozhraní
 ├── logs.php                       # Zobrazení logů
 ├── lib.php                        # Knihovní funkce a hooks
 ├── settings.php                   # Administrátorská nastavení
 ├── version.php                    # Informace o verzi
-├── thirdpartylibs.xml            # Deklarace knihoven třetích stran
+├── LLM_ARCHITECTURE.md            # Architektura LLM vrstvy
+├── MIGRATION_GUIDE.md             # Průvodce migrací
+├── REFACTORING_QUICK_START.md     # Rychlý start
+├── DOCUMENTATION_INDEX.md         # Rozcestník dokumentace
+├── thirdpartylibs.xml             # Deklarace knihoven třetích stran
 └── README.md                      # Dokumentace (anglicky)
 ```
 
@@ -215,39 +233,25 @@ public function extract($fileid) {
 - Binární parsování
 - Regex extrakce textu
 
-### 5. OpenRouter Client (`openrouter_client.php`)
+### 5. LLM vrstva (`classes/llm/`)
 
-**Účel:** Komunikace s OpenRouter API pro generování otázek.
+**Účel:** Abstraktní komunikace s různými LLM providery pro generování otázek.
 
-**Konfigurace:**
-- API klíč
-- Model (GPT-4o, Claude, Gemini, atd.)
-- Timeout
-- Max tokens
+**Architektura:**
+- `llm_client_interface.php` - rozhraní, které musí implementovat každý provider
+- `llm_client_base.php` - sdílená logika (prompt building, parsování JSON, validace)
+- `llm_factory.php` - factory pro vytvoření správného klienta podle konfigurace
+- Implementace providerů:
+  - `openrouter_client.php` - aktivní OpenRouter implementace
+  - `openai_client.php.example` - ukázková implementace pro další provider
 
-**Podporované modely:**
-| Model | Popis |
-|-------|-------|
-| `openai/gpt-4o-mini` | Rychlý a cenově dostupný |
-| `openai/gpt-4o` | Nejvyšší kvalita |
-| `anthropic/claude-3.5-sonnet` | Výborná kvalita |
-| `anthropic/claude-3-haiku` | Rychlý Claude |
-| `google/gemini-2.5-pro` | Pro dlouhý obsah |
-| `google/gemini-2.5-flash` | Rychlý Google |
-| `meta-llama/llama-3.1-70b-instruct` | Open source |
-| `mistralai/mistral-large-2512` | Evropská alternativa |
-
-**Prompt struktura:**
+**Použití v kódu:**
 ```php
-$systemPrompt = "You are an expert educational content creator...";
-$userPrompt = "Based on the following educational content, generate {$count} 
-               {$type} questions in the same language as the content...";
-```
+use local_quizgen\llm\llm_factory;
 
-**Zpracování odpovědi:**
-- Parsování JSON z markdown bloků
-- Validace struktury otázek
-- Ošetření chyb API
+$client = llm_factory::create();
+$result = $client->generate_questions($content, $count, $type);
+```
 
 ### 6. Quiz Generator (`quiz_generator.php`)
 
@@ -342,7 +346,7 @@ Logovací tabulka pro audit.
 ### Sekvenční diagram
 
 ```
-Uživatel          index.php       JobManager      FileExtractor     OpenRouterClient    QuizGenerator
+Uživatel          index.php       JobManager      FileExtractor       llm_factory      QuizGenerator
     │                 │               │                │                   │                  │
     │ 1. Výběr souborů│               │                │                   │                  │
     │────────────────▶│               │                │                   │                  │
@@ -363,20 +367,22 @@ Uživatel          index.php       JobManager      FileExtractor     OpenRouterC
     │                 │               │                │                   │                  │
     │                 │               │ 7. Text        │                   │                  │
     │                 │               │◀───────────────│                   │                  │
-    │                 │               │                │                   │                  │
-    │                 │               │ 8. generate_questions()            │                  │
+    │                 │               │                │ 8. create()       │                  │
     │                 │               │───────────────────────────────────▶│                  │
     │                 │               │                │                   │                  │
-    │                 │               │ 9. Otázky JSON │                   │                  │
-    │                 │               │◀───────────────────────────────────│                  │
+    │                 │               │                │ 9. generate_questions()             │
+    │                 │               │──────────────────────────────────────────────────────▶│
     │                 │               │                │                   │                  │
-    │                 │               │ 10. create_quiz()                                     │
-    │                 │               │────────────────────────────────────────────────────── ▶│
-    │                 │               │                │                   │                  │
-    │                 │               │ 11. Quiz ID, CMID                                     │
+    │                 │               │                │ 10. Otázky JSON   │                  │
     │                 │               │◀──────────────────────────────────────────────────────│
     │                 │               │                │                   │                  │
-    │ 12. Výsledek    │               │                │                   │                  │
+    │                 │               │ 11. create_quiz()                                 │
+    │                 │               │────────────────────────────────────────────────────▶│
+    │                 │               │                │                   │                  │
+    │                 │               │ 12. Quiz ID, CMID                                 │
+    │                 │               │◀────────────────────────────────────────────────────│
+    │                 │               │                │                   │                  │
+    │ 13. Výsledek    │               │                │                   │                  │
     │◀────────────────│               │                │                   │                  │
 ```
 
@@ -430,10 +436,11 @@ Cesta: **Site Administration > Plugins > Local Plugins > MoodleTestGeneratorPlug
 
 | Nastavení | Výchozí | Popis |
 |-----------|---------|-------|
-| `openrouter_api_key` | - | API klíč OpenRouter |
-| `openrouter_model` | gpt-4o-mini | Vybraný AI model |
-| `openrouter_model_custom` | - | Vlastní model (pokud "other") |
-| `openrouter_timeout` | 60 | Timeout API v sekundách |
+| `llm_provider` | openrouter | LLM provider |
+| `llm_api_key` | - | API klíč pro zvoleného providera |
+| `llm_model` | openai/gpt-4o-mini | Vybraný AI model |
+| `llm_model_custom` | - | Vlastní model (pokud "other") |
+| `llm_timeout` | 60 | Timeout API v sekundách |
 | `max_tokens` | 2000 | Max tokens pro odpověď |
 | `default_question_count` | 10 | Výchozí počet otázek |
 | `default_question_type` | multichoice | Výchozí typ otázek |
@@ -441,6 +448,8 @@ Cesta: **Site Administration > Plugins > Local Plugins > MoodleTestGeneratorPlug
 | `max_text_length` | 15000 | Max délka extrahovaného textu |
 | `enable_logging` | 1 | Povolit logování |
 | `max_retries` | 3 | Počet pokusů při chybě |
+
+**Poznámka:** Staré klíče `openrouter_*` stále fungují jako fallback pro zpětnou kompatibilitu.
 
 ### Oprávnění
 

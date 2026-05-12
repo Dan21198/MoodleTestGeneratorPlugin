@@ -30,6 +30,7 @@ global $CFG;
 require_once($CFG->dirroot . '/local/quizgen/lib.php');
 
 use local_quizgen\util\text_helper;
+use local_quizgen\llm\llm_factory;
 
 /**
  * Manager for PDF to Quiz generation jobs.
@@ -222,8 +223,8 @@ class job_manager {
             $combinedtext = implode("\n\n", $alltext);
             $this->update_job_field($jobid, 'extracted_text', $combinedtext);
 
-            // Step 2: Generate questions using OpenRouter
-            $client = new openrouter_client();
+            // Step 2: Generate questions using configured LLM provider
+            $client = llm_factory::create();
             $allquestions = [];
 
             // Generate questions for each file proportionally
